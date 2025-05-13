@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 패널 - 상황 대처 게임</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="admin-style.css">
+    <style>
+        body {
+            padding-top: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .section {
+            display: none;
+            margin-top: 20px;
+        }
+        .section.active {
+            display: block;
+        }
+        .login-panel {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 20px;
+            border-radius: 5px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .dashboard {
+            display: none;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.05);
+        }
+        .item-row:hover {
+            background-color: #f8f9fa;
+        }
+        .btn-icon {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        .nav-button {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+        }
+        textarea {
+            font-family: monospace;
+            min-height: 100px;
+        }
+        /* 카테고리별 환영 메시지 섹션 */
+        .category-welcome-messages {
+            margin-top: 20px;
+            border-top: 1px solid #ccc;
+            padding-top: 20px;
+        }
+
+        .category-message-group {
+            margin-bottom: 15px;
+        }
+
+        .category-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        .add-category-message {
+            margin-top: 15px;
+            padding: 8px 15px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .add-category-message:hover {
+            background-color: #388e3c;
+        }
+    </style>
+</head>
+<body>
+    <!-- 로그인 패널 -->
+    <form id="login-form" class="login-panel panel">
+        <h3 class="text-center mb-4">상황 대처 게임 관리자</h3>
+        <div class="mb-3">
+            <label for="admin-id" class="form-label">관리자 ID</label>
+            <input type="text" class="form-control" id="admin-id" placeholder="아이디를 입력하세요">
+        </div>
+        <div class="mb-3">
+            <label for="admin-password" class="form-label">비밀번호</label>
+            <input type="password" class="form-control" id="admin-password" placeholder="비밀번호를 입력하세요">
+        </div>
+        <div class="d-grid">
+            <button type="submit" class="btn btn-primary" id="login-button">로그인</button>
+        </div>
+        <div id="login-message" class="mt-3 text-danger text-center"></div>
+    </form>
+
+    <!-- 대시보드 -->
+    <div class="container dashboard">
+        <header class="d-flex justify-content-between align-items-center mb-4">
+            <h1>상황 대처 게임 관리자</h1>
+            <button id="logout-button" class="btn btn-outline-danger">로그아웃</button>
+        </header>
+
+        <!-- 내비게이션 버튼 -->
+        <nav class="mb-4">
+            <button class="btn btn-primary nav-button" data-section="items-section">게임 시나리오 관리</button>
+            <button class="btn btn-primary nav-button" data-section="prompts-section">게임 프롬프트 관리</button>
+            <button class="btn btn-primary nav-button" data-section="sessions-section">게임 세션 관리</button>
+            <button class="btn btn-primary nav-button" data-section="stats-section">통계</button>
+        </nav>
+
+        <!-- 게임 시나리오 관리 섹션 -->
+        <div id="items-section" class="section active">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">게임 시나리오 관리</h5>
+                    <button class="btn btn-success" id="add-item-button">
+                        <i class="bi bi-plus"></i> 새 시나리오 추가
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="items-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>카테고리</th>
+                                    <th>제목</th>
+                                    <th>턴 제한</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-list">
+                                <!-- 항목 목록이 여기에 동적으로 추가됩니다 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 프롬프트 관리 섹션 -->
+        <div id="prompts-section" class="section">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">게임 프롬프트 관리</h5>
+                    <button class="btn btn-success" id="save-prompts-button">
+                        <i class="bi bi-save"></i> 프롬프트 저장
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 게임 프롬프트는 AI의 동작 방식을 결정하는 중요한 요소입니다. 신중하게 편집하세요.
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="system-prompt" class="form-label fw-bold">시스템 프롬프트 템플릿</label>
+                        <textarea id="system-prompt" class="form-control mb-2" rows="10"></textarea>
+                        <small class="text-muted">
+                            사용 가능한 변수: {title}, {category}, {character_setting}, {win_condition}, {lose_condition}, {max_turns}, {current_turn}, {difficulty} - 실제 게임에서 자동으로 채워집니다.
+                        </small>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="welcome-message" class="form-label fw-bold">환영 메시지</label>
+                            <textarea id="welcome-message" class="form-control"></textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="correct-answer-message" class="form-label fw-bold">승리 메시지</label>
+                            <textarea id="correct-answer-message" class="form-control"></textarea>
+                            <small class="text-muted">사용 가능한 변수: {title}, {win_condition}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="wrong-answer-message" class="form-label fw-bold">패배 메시지</label>
+                            <textarea id="wrong-answer-message" class="form-control"></textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="game-end-message" class="form-label fw-bold">게임 종료 메시지</label>
+                            <textarea id="game-end-message" class="form-control"></textarea>
+                            <small class="text-muted">사용 가능한 변수: {title}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">오류 메시지</label>
+                            <div id="error-messages">
+                                <!-- 오류 메시지 필드들이 동적으로 추가됩니다 -->
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">AI 설정</label>
+                            <div class="mb-3">
+                                <label for="ai-model" class="form-label">모델</label>
+                                <select id="ai-model" class="form-select">
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                    <option value="gpt-4o-mini">GPT-4o Mini (빠르고 효율적)</option>
+                                    <option value="gpt-4">GPT-4 Turbo</option>
+                                    <option value="gpt-4o">GPT-4o (성능과 속도의 균형)</option>
+                                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                    <option value="gpt-4-1106-preview">GPT-4 Turbo 1106</option>
+                                </select>
+                                <small class="text-muted">* GPT-4o mini: 가성비 높은 성능, GPT-4o: 최상의 성능과 속도 균형</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="ai-max-tokens" class="form-label">최대 토큰 수</label>
+                                <input type="number" id="ai-max-tokens" class="form-control">
+                            </div>
+                            <div class="mb-3">
+                                <label for="ai-temperature" class="form-label">온도(창의성)</label>
+                                <input type="number" id="ai-temperature" class="form-control" min="0" max="2" step="0.1">
+                                <small class="text-muted">0: 일관적, 2: 매우 창의적</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 카테고리별 환영 메시지 섹션 -->
+                    <div class="category-welcome-messages">
+                        <h3>카테고리별 환영 메시지</h3>
+                        <p>각 카테고리별로 맞춤형 환영 메시지를 설정할 수 있습니다.</p>
+                        
+                        <div id="category-messages-container">
+                            <!-- 여기에 카테고리별 메시지 입력란이 추가됩니다 -->
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="new-category">새 카테고리:</label>
+                            <input type="text" id="new-category" class="form-control" placeholder="카테고리 이름">
+                        </div>
+                        
+                        <button class="add-category-message" id="add-category-btn">카테고리 추가</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 세션 관리 섹션 -->
+        <div id="sessions-section" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">게임 세션 관리</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="sessions-table">
+                            <thead>
+                                <tr>
+                                    <th>게임 ID</th>
+                                    <th>시나리오</th>
+                                    <th>카테고리</th>
+                                    <th>현재 턴</th>
+                                    <th>최대 턴</th>
+                                    <th>상태</th>
+                                    <th>생성 시간</th>
+                                    <th>작업</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sessions-list">
+                                <!-- 세션 목록이 여기에 동적으로 추가됩니다 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 통계 섹션 -->
+        <div id="stats-section" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">시스템 통계</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">일반 통계</h6>
+                                    <ul class="list-group list-group-flush" id="general-stats">
+                                        <!-- 통계 항목이 여기에 동적으로 추가됩니다 -->
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">디버그 정보</h6>
+                                    <pre id="debug-info">정보를 불러오는 중...</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 시나리오 추가/편집 모달 -->
+    <div class="modal fade" id="item-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="item-modal-title">시나리오 추가</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="item-id">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="item-title" class="form-label">제목</label>
+                            <input type="text" class="form-control" id="item-title" placeholder="시나리오 제목을 입력하세요">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="item-category" class="form-label">카테고리</label>
+                            <select class="form-select" id="item-category">
+                                <option value="플러팅">플러팅</option>
+                                <option value="면접">면접</option>
+                                <option value="물건판매">물건판매</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="item-max-turns" class="form-label">제한 턴수</label>
+                            <input type="number" class="form-control" id="item-max-turns" min="1" max="10" value="5">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="item-character-name" class="form-label">캐릭터 이름</label>
+                            <input type="text" class="form-control" id="item-character-name" placeholder="채팅에 표시될 캐릭터 이름">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="item-win-condition" class="form-label">승리 조건</label>
+                        <input type="text" class="form-control" id="item-win-condition" placeholder="승리 조건을 입력하세요">
+                    </div>
+                    <div class="mb-3">
+                        <label for="item-lose-condition" class="form-label">패배 조건</label>
+                        <input type="text" class="form-control" id="item-lose-condition" placeholder="패배 조건을 입력하세요">
+                    </div>
+                    <div class="mb-3">
+                        <label for="item-character-setting" class="form-label">상황 설정 (프롬프트)</label>
+                        <textarea class="form-control" id="item-character-setting" rows="5" placeholder="상황 설정을 자세히 설명하세요"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="save-item-button">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 삭제 확인 모달 -->
+    <div class="modal fade" id="delete-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">시나리오 삭제</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="delete-item-id">
+                    <p>정말 이 시나리오를 삭제하시겠습니까?</p>
+                    <p class="text-danger">이 작업은 되돌릴 수 없습니다.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-danger" id="confirm-delete-button">삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 시나리오별 프롬프트 관리 모달 -->
+    <div class="modal fade" id="item-prompt-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="item-prompt-modal-title">시나리오 프롬프트 관리</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="prompt-item-id">
+                    
+                    <div class="item-info mb-4">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="prompt-item-title-edit" class="form-label">제목</label>
+                                <input type="text" class="form-control" id="prompt-item-title-edit">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="prompt-item-category-edit" class="form-label">카테고리</label>
+                                <select class="form-select" id="prompt-item-category-edit">
+                                    <option value="플러팅">플러팅</option>
+                                    <option value="면접">면접</option>
+                                    <option value="물건판매">물건판매</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="prompt-item-turns-edit" class="form-label">제한 턴수</label>
+                                <input type="number" class="form-control" id="prompt-item-turns-edit" min="1" max="10" value="5">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="prompt-item-character-name-edit" class="form-label">캐릭터 이름</label>
+                                <input type="text" class="form-control" id="prompt-item-character-name-edit" placeholder="채팅에 표시될 캐릭터 이름">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="item-system-prompt" class="form-label fw-bold">시스템 프롬프트</label>
+                        <textarea id="item-system-prompt" class="form-control mb-2" rows="10"></textarea>
+                        <small class="text-muted">
+                            사용 가능한 변수: {title}, {category}, {character_setting}, {win_condition}, {lose_condition}, {max_turns}, {current_turn}, {difficulty}, {character_name}
+                        </small>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-12 mb-3">
+                            <label for="item-welcome-message" class="form-label fw-bold">환영 메시지</label>
+                            <textarea id="item-welcome-message" class="form-control" rows="3"></textarea>
+                            <small class="text-muted">특정 시나리오에 맞춤화된 환영 메시지. 기본 환영 메시지나 카테고리 환영 메시지보다 우선 적용됩니다.</small>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-settings mb-4">
+                        <h6 class="fw-bold">AI 설정</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="item-ai-model" class="form-label">모델</label>
+                                <select id="item-ai-model" class="form-select">
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                    <option value="gpt-4o-mini" selected>GPT-4o Mini (빠르고 효율적)</option>
+                                    <option value="gpt-4o">GPT-4o (성능과 속도의 균형)</option>
+                                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                    <option value="gpt-4-1106-preview">GPT-4 Turbo 1106</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="item-ai-max-tokens" class="form-label">최대 토큰 수</label>
+                                <input type="number" id="item-ai-max-tokens" class="form-control" value="200">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="item-ai-temperature" class="form-label">온도(창의성)</label>
+                                <input type="number" id="item-ai-temperature" class="form-control" min="0" max="2" step="0.1" value="0.7">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="save-item-prompt-button">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="admin.js"></script>
+</body>
+</html> 
