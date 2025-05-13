@@ -1,10 +1,9 @@
-from http.server import BaseHTTPRequestHandler
 from datetime import datetime
 import json
 import os
 from .utils import create_response, create_openai_client
 
-def handler(request):
+def handler(request, response):
     try:
         # OpenAI 클라이언트 상태 확인
         client_status = "unknown"
@@ -36,7 +35,7 @@ def handler(request):
             "api_mode": "test_mode" if client_status == "test_mode" else "production"
         }
         
-        response, status_code = create_response(
+        response_data, status_code = create_response(
             success=True,
             data=health_data,
             message="서버가 정상 작동 중입니다."
@@ -44,16 +43,16 @@ def handler(request):
         
         return {
             "statusCode": status_code,
-            "body": json.dumps(response),
+            "body": json.dumps(response_data),
             "headers": {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Headers": "Content-Type",
-                "Access-Control-Allow-Methods": "GET"
+                "Access-Control-Allow-Methods": "GET, OPTIONS"
             }
         }
     except Exception as e:
-        response, status_code = create_response(
+        response_data, status_code = create_response(
             success=False,
             error=str(e),
             status_code=500
@@ -61,11 +60,11 @@ def handler(request):
         
         return {
             "statusCode": status_code,
-            "body": json.dumps(response),
+            "body": json.dumps(response_data),
             "headers": {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Headers": "Content-Type",
-                "Access-Control-Allow-Methods": "GET"
+                "Access-Control-Allow-Methods": "GET, OPTIONS"
             }
         } 
