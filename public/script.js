@@ -472,7 +472,7 @@ async function askQuestion(message) {
                 gameEnded = true;
                 
                 // 승패 메시지 표시
-                if (result.win) {
+                if (result.victory) {
                     addMessage('시스템', '축하합니다! 승리 조건을 달성했습니다!', 'system-message success-text');
                 } else {
                     addMessage('시스템', '게임 오버! 턴 제한에 도달했습니다.', 'system-message error-text');
