@@ -29,7 +29,8 @@ const startRandomBtn = document.getElementById('start-random-btn');
 const characterInfoElement = document.getElementById('character-info');
 
 // API 서버 URL 설정
-const API_BASE_URL = ''; // 상대 경로 사용 (기본)
+const API_BASE_URL = 'https://flask-vercel-ebon.vercel.app'; // 새로운 서버 URL 사용
+//const API_BASE_URL = ''; // 상대 경로 사용 (기본)
 //const API_BASE_URL = 'https://flask-vercel-jaesikyun-jax.vercel.app'; // 서버리스 API URL
 //const API_BASE_URL = 'http://localhost:5000'; // 로컬 개발용 URL
 
@@ -108,6 +109,16 @@ async function checkServerStatus() {
         const healthUrl = `${API_BASE_URL}/api/health`;
         console.log('서버 상태 API 요청 URL:', healthUrl);
         
+        // CORS 디버깅을 위한 옵션 출력
+        console.log('요청 옵션:', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            mode: 'cors'
+        });
+        
         // 실제 요청 전송
         console.log('요청 전송 시작...');
         const response = await fetch(healthUrl, {
@@ -123,6 +134,41 @@ async function checkServerStatus() {
         console.log('응답 상태:', response.status, response.statusText);
         console.log('응답 헤더:', [...response.headers.entries()]);
         
+        // 404 에러 구체적으로 처리
+        if (response.status === 404) {
+            console.error('404 에러: API 엔드포인트를 찾을 수 없습니다');
+            console.log('대안 엔드포인트 시도: /health');
+            
+            // 대안 API 경로 시도
+            const alternativeUrl = `${API_BASE_URL}/health`;
+            console.log('대안 URL 시도:', alternativeUrl);
+            
+            try {
+                const altResponse = await fetch(alternativeUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                console.log('대안 엔드포인트 응답:', altResponse);
+                
+                if (altResponse.ok) {
+                    console.log('대안 엔드포인트 성공!');
+                    // 아래 처리 로직으로 계속
+                    // response 변수 업데이트
+                    response = altResponse;
+                } else {
+                    throw new Error(`대안 엔드포인트도 실패: ${altResponse.status}`);
+                }
+            } catch (altError) {
+                console.error('대안 엔드포인트 호출 오류:', altError);
+                // 원래 오류로 계속 진행
+            }
+        }
+        
         if (response.ok) {
             // 응답 텍스트 먼저 확인
             const responseText = await response.text();
@@ -135,7 +181,13 @@ async function checkServerStatus() {
                 console.log('파싱된 JSON 데이터:', data);
             } catch (parseError) {
                 console.error('JSON 파싱 오류:', parseError);
-                throw new Error(`JSON 파싱 오류: ${parseError.message}`);
+                // 텍스트 응답으로 판단 시도
+                if (responseText.includes('online')) {
+                    console.log('텍스트 응답에서 "online" 문자열 발견');
+                    data = { status: 'online' };
+                } else {
+                    throw new Error(`JSON 파싱 오류: ${parseError.message}`);
+                }
             }
             
             // 서버 응답 성공 - status 필드 확인
@@ -170,6 +222,8 @@ async function checkServerStatus() {
         // "Failed to fetch" 같은 기술적 오류 메시지 대신 보기 좋은 메시지 표시
         if (error.message.includes('Failed to fetch')) {
             errorMessage = '❌ 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.';
+        } else if (error.message.includes('404')) {
+            errorMessage = '❌ API 엔드포인트를 찾을 수 없습니다 (404 오류)';
         } else {
             errorMessage = `❌ 서버 연결 오류: ${error.message.replace('TypeError: ', '').replace('Error: ', '')}`;
         }
@@ -192,7 +246,7 @@ async function fetchGameItems() {
         
         // 실제 요청 전송
         console.log('게임 목록 요청 전송 시작...');
-        const response = await fetch(gamesUrl, {
+        let response = await fetch(gamesUrl, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -204,6 +258,46 @@ async function fetchGameItems() {
         console.log('게임 목록 응답 받음:', response);
         console.log('응답 상태:', response.status, response.statusText);
         console.log('응답 헤더:', [...response.headers.entries()]);
+        
+        // 404 에러 구체적으로 처리
+        if (response.status === 404) {
+            console.error('404 에러: 게임 목록 API 엔드포인트를 찾을 수 없습니다');
+            console.log('대안 엔드포인트 시도: /games');
+            
+            // 대안 API 경로 시도
+            const alternativeUrl = `${API_BASE_URL}/games`;
+            console.log('대안 URL 시도:', alternativeUrl);
+            
+            try {
+                const altResponse = await fetch(alternativeUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                console.log('대안 엔드포인트 응답:', altResponse);
+                
+                if (altResponse.ok) {
+                    console.log('대안 엔드포인트 성공!');
+                    // 아래 처리 로직으로 계속
+                    // response 변수 업데이트
+                    response = altResponse;
+                } else {
+                    throw new Error(`대안 엔드포인트도 실패: ${altResponse.status}`);
+                }
+            } catch (altError) {
+                console.error('대안 엔드포인트 호출 오류:', altError);
+                // 원래 오류로 계속 진행
+                
+                // 더미 데이터로 대체
+                console.warn('API 호출 실패, 더미 게임 데이터 사용');
+                useDefaultGameItems();
+                return;
+            }
+        }
         
         if (!response.ok) {
             throw new Error(`서버 응답 오류: ${response.status}`);
@@ -237,53 +331,37 @@ async function fetchGameItems() {
         } else {
             console.error('게임 항목을 불러오는데 실패했습니다:', data.error || '알 수 없는 오류');
             // 게임 목록이 비어있다면, 기본 더미 데이터 추가
-            if (!gameItems || gameItems.length === 0) {
-                console.log('더미 게임 데이터 사용 중...');
-                gameItems = [
-                    {
-                        id: "1", 
-                        title: "신비한 인물 찾기",
-                        category: "인물",
-                        character_name: "알 수 없는 인물",
-                        max_turns: 10
-                    },
-                    {
-                        id: "2",
-                        title: "플러팅 마스터",
-                        category: "대화",
-                        character_name: "이유나",
-                        max_turns: 5
-                    }
-                ];
-                populateGameSelect(gameItems);
-            }
+            useDefaultGameItems();
         }
     } catch (error) {
         console.error('게임 항목 가져오기 실패:', error);
         console.error('에러 세부정보:', error.stack);
         
-        // 게임 목록이 비어있다면, 기본 더미 데이터 추가
-        if (!gameItems || gameItems.length === 0) {
-            console.log('오류 발생으로 더미 게임 데이터 사용 중...');
-            gameItems = [
-                {
-                    id: "1", 
-                    title: "신비한 인물 찾기",
-                    category: "인물",
-                    character_name: "알 수 없는 인물",
-                    max_turns: 10
-                },
-                {
-                    id: "2",
-                    title: "플러팅 마스터",
-                    category: "대화",
-                    character_name: "이유나",
-                    max_turns: 5
-                }
-            ];
-            populateGameSelect(gameItems);
-        }
+        // 더미 데이터로 대체
+        useDefaultGameItems();
     }
+}
+
+// 더미 게임 데이터 사용 함수
+function useDefaultGameItems() {
+    console.log('더미 게임 데이터 사용 중...');
+    gameItems = [
+        {
+            id: "1", 
+            title: "신비한 인물 찾기",
+            category: "인물",
+            character_name: "알 수 없는 인물",
+            max_turns: 10
+        },
+        {
+            id: "2",
+            title: "플러팅 마스터",
+            category: "대화",
+            character_name: "이유나",
+            max_turns: 5
+        }
+    ];
+    populateGameSelect(gameItems);
 }
 
 // 게임 선택 드롭다운 채우기
@@ -537,7 +615,11 @@ async function handleSendMessage() {
 // AI에게 질문 요청
 async function askQuestion(message) {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/ask`, {
+        const askUrl = `${API_BASE_URL}/api/ask`;
+        console.log('AI 질문 요청 URL:', askUrl);
+        console.log('질문 내용:', message);
+        
+        let response = await fetch(askUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -547,6 +629,45 @@ async function askQuestion(message) {
                 message: message 
             })
         });
+        
+        console.log('AI 질문 응답 받음:', response);
+        console.log('응답 상태:', response.status, response.statusText);
+        console.log('응답 헤더:', [...response.headers.entries()]);
+        
+        // 404 에러 구체적으로 처리
+        if (response.status === 404) {
+            console.error('404 에러: 질문 API 엔드포인트를 찾을 수 없습니다');
+            console.log('대안 엔드포인트 시도: /ask');
+            
+            // 대안 API 경로 시도
+            const alternativeUrl = `${API_BASE_URL}/ask`;
+            console.log('대안 URL 시도:', alternativeUrl);
+            
+            try {
+                const altResponse = await fetch(alternativeUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        game_id: gameId,
+                        message: message 
+                    })
+                });
+                
+                console.log('대안 엔드포인트 응답:', altResponse);
+                
+                if (altResponse.ok) {
+                    console.log('대안 엔드포인트 성공!');
+                    response = altResponse;
+                } else {
+                    throw new Error(`대안 엔드포인트도 실패: ${altResponse.status}`);
+                }
+            } catch (altError) {
+                console.error('대안 엔드포인트 호출 오류:', altError);
+                // 원래 오류로 계속 진행
+            }
+        }
         
         if (!response.ok) {
             throw new Error(`서버 응답 오류: ${response.status}`);
@@ -559,7 +680,19 @@ async function askQuestion(message) {
             serverStatus.classList.remove('error-text');
         }
         
-        const data = await response.json();
+        // 응답 텍스트 먼저 확인
+        const responseText = await response.text();
+        console.log('AI 응답 원본 텍스트:', responseText);
+        
+        // JSON 파싱 시도
+        let data;
+        try {
+            data = JSON.parse(responseText);
+            console.log('파싱된 AI 응답 데이터:', data);
+        } catch (parseError) {
+            console.error('JSON 파싱 오류:', parseError);
+            throw new Error(`JSON 파싱 오류: ${parseError.message}`);
+        }
         
         if (data.success) {
             const result = data.data;
@@ -593,6 +726,10 @@ async function askQuestion(message) {
         }
     } catch (error) {
         console.error('질문 요청 중 오류:', error);
+        console.error('에러 세부정보:', error.stack);
+        
+        // 사용자에게 오류 메시지 표시
+        addMessage('시스템', `질문 처리 중 오류가 발생했습니다: ${error.message}`, 'system-message error-text');
         throw error;
     }
 }
