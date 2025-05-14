@@ -36,43 +36,105 @@ const API_BASE_URL = 'https://flask-vercel-ebon.vercel.app'; // 새로운 서버
 
 // 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
 document.addEventListener('DOMContentLoaded', async () => {
-    // 콘솔에 디버그 메시지 출력
-    console.log('페이지 로드됨, 이벤트 리스너 설정 시작');
-    console.log('서버 URL:', API_BASE_URL || '(상대 경로)');
-    
-    // 서버 상태 확인 시작
-    await checkServerStatus();
-    
-    // 이벤트 리스너 등록
-    console.log('버튼 이벤트 리스너 추가 시작');
-    startSelectedBtn.addEventListener('click', () => {
-        console.log('선택 게임 시작 버튼 클릭됨');
-        handleStartGame('selected');
-    });
-    
-    startRandomBtn.addEventListener('click', () => {
-        console.log('랜덤 게임 시작 버튼 클릭됨');
-        handleStartGame('random');
-    });
-    
-    sendButton.addEventListener('click', handleSendMessage);
-    userInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-            handleSendMessage();
+    try {
+        // 콘솔에 디버그 메시지 출력
+        console.log('페이지 로드됨, 이벤트 리스너 설정 시작');
+        console.log('서버 URL:', API_BASE_URL || '(상대 경로)');
+        
+        // 모든 DOM 요소가 존재하는지 확인
+        validateDomElements();
+        
+        // 서버 상태 확인 시작
+        await checkServerStatus();
+        
+        // 이벤트 리스너 등록
+        console.log('버튼 이벤트 리스너 추가 시작');
+        
+        if (startSelectedBtn) {
+            startSelectedBtn.addEventListener('click', () => {
+                console.log('선택 게임 시작 버튼 클릭됨');
+                handleStartGame('selected');
+            });
         }
-    });
-    
-    // 글자 수 카운터 이벤트 리스너 추가
-    userInput.addEventListener('input', updateCharCount);
-    
-    endGameButton.addEventListener('click', handleEndGame);
-    newGameButton.addEventListener('click', handleBackToHome);
-    
-    console.log('이벤트 리스너 설정 완료');
-    
-    // 모든 버튼이 제대로 DOM에 있는지 확인
-    checkButtonsExist();
+        
+        if (startRandomBtn) {
+            startRandomBtn.addEventListener('click', () => {
+                console.log('랜덤 게임 시작 버튼 클릭됨');
+                handleStartGame('random');
+            });
+        }
+        
+        if (sendButton) {
+            sendButton.addEventListener('click', handleSendMessage);
+        }
+        
+        if (userInput) {
+            userInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    handleSendMessage();
+                }
+            });
+            
+            // 글자 수 카운터 이벤트 리스너 추가
+            userInput.addEventListener('input', updateCharCount);
+        }
+        
+        if (endGameButton) {
+            endGameButton.addEventListener('click', handleEndGame);
+        }
+        
+        if (newGameButton) {
+            newGameButton.addEventListener('click', handleBackToHome);
+        }
+        
+        console.log('이벤트 리스너 설정 완료');
+        
+        // 모든 버튼이 제대로 DOM에 있는지 확인
+        checkButtonsExist();
+    } catch (error) {
+        console.error('페이지 초기화 중 오류 발생:', error);
+        alert('페이지를 로드하는 중 오류가 발생했습니다. 페이지를 새로고침해보세요.');
+    }
 });
+
+// DOM 요소가 모두 존재하는지 확인하는 함수
+function validateDomElements() {
+    const requiredElements = {
+        'serverStatus': serverStatus,
+        'startScreen': startScreen,
+        'gameContainer': gameContainer,
+        'gameIdElement': gameIdElement,
+        'categoryElement': categoryElement,
+        'titleElement': titleElement,
+        'winConditionElement': winConditionElement,
+        'turnIndicator': turnIndicator,
+        'messageContainer': messageContainer,
+        'userInput': userInput,
+        'sendButton': sendButton,
+        'endGameButton': endGameButton,
+        'newGameButton': newGameButton,
+        'gameSelect': gameSelect,
+        'startSelectedBtn': startSelectedBtn,
+        'startRandomBtn': startRandomBtn,
+        'characterInfoElement': characterInfoElement
+    };
+
+    let missingElements = [];
+    
+    for (const [name, element] of Object.entries(requiredElements)) {
+        if (!element) {
+            console.error(`필수 DOM 요소 누락: ${name}`);
+            missingElements.push(name);
+        }
+    }
+    
+    if (missingElements.length > 0) {
+        console.warn('누락된 DOM 요소:', missingElements.join(', '));
+        // 누락된 요소가 있으면 콘솔에 경고만 표시하고 계속 진행
+    } else {
+        console.log('모든 필수 DOM 요소 확인 완료');
+    }
+}
 
 // 버튼이 DOM에 제대로 있는지 확인하는 함수
 function checkButtonsExist() {
@@ -528,26 +590,33 @@ async function handleStartGame(mode) {
         }
         
         if (data.success) {
-            const result = data.data;
-            gameId = result.game_id;
-            title = result.title;
-            currentTurn = result.current_turn;
-            maxTurns = result.max_turns;
-            winCondition = result.win_condition;
+            const result = data.data || {};
+            
+            // 안전하게 속성 접근을 위해 기본값 설정
+            gameId = result.game_id || `game_${Date.now()}`;
+            title = result.title || '알 수 없는 시나리오';
+            currentTurn = result.current_turn || 1;
+            maxTurns = result.max_turns || 10;
+            winCondition = result.win_condition || '알 수 없는 승리 조건';
             characterName = result.character_name || "AI"; // 캐릭터 이름 저장
+            
+            // 서버 응답 데이터 로그
+            console.log('게임 데이터 적용:', {
+                gameId, title, currentTurn, maxTurns, winCondition, characterName
+            });
             
             // UI 업데이트
             gameIdElement.textContent = `게임 ID: ${gameId}`;
-            categoryElement.textContent = `카테고리: ${result.category}`;
-            titleElement.textContent = `시나리오: ${result.title}`;
-            winConditionElement.textContent = `승리 조건: ${result.win_condition}`;
+            categoryElement.textContent = `카테고리: ${result.category || '일반'}`;
+            titleElement.textContent = `시나리오: ${title}`;
+            winConditionElement.textContent = `승리 조건: ${winCondition}`;
             
             // 캐릭터 설정 업데이트 (이름 포함)
             let characterInfo = result.character_setting || "";
             if (characterName && characterName !== "AI") {
                 characterInfo = `<strong>${characterName}</strong>과의 대화입니다. ${characterInfo}`;
             }
-            characterInfoElement.innerHTML = characterInfo;
+            characterInfoElement.innerHTML = characterInfo || "AI와 대화를 시작하세요.";
             
             updateTurnIndicator(currentTurn, maxTurns);
             
@@ -557,7 +626,7 @@ async function handleStartGame(mode) {
             
             // 시스템 메시지 추가
             addMessage('시스템', '게임이 시작되었습니다!', 'system-message');
-            addMessage(characterName, result.welcome_message, 'ai-message');
+            addMessage(characterName, result.welcome_message || '안녕하세요! 대화를 시작해볼까요?', 'ai-message');
             
             // 게임 상태 초기화
             gameEnded = false;
@@ -842,15 +911,19 @@ async function askQuestion(message) {
         }
         
         if (data.success) {
-            const result = data.data;
+            const result = data.data || {};
             
             // AI 응답 표시 (캐릭터 이름 사용)
             const aiSender = result.character_name || characterName || 'AI';
-            addMessage(aiSender, result.response, 'ai-message');
+            const aiResponse = result.response || '응답을 생성하는 중 오류가 발생했습니다.';
+            addMessage(aiSender, aiResponse, 'ai-message');
             
             // 턴 업데이트
             if (result.current_turn) {
                 currentTurn = result.current_turn;
+                updateTurnIndicator(currentTurn, maxTurns);
+            } else {
+                currentTurn++; // 서버가 턴 정보를 제공하지 않으면 수동으로 증가
                 updateTurnIndicator(currentTurn, maxTurns);
             }
             
@@ -866,6 +939,11 @@ async function askQuestion(message) {
                 }
                 
                 // 게임 종료 컨트롤 표시
+                showGameOverControls();
+            } else if (currentTurn >= maxTurns) {
+                // 턴 제한에 도달했지만 서버에서 completed 플래그를 설정하지 않은 경우
+                gameEnded = true;
+                addMessage('시스템', '게임 오버! 턴 제한에 도달했습니다.', 'system-message error-text');
                 showGameOverControls();
             }
         } else {
@@ -1112,6 +1190,16 @@ function addMessage(sender, text, className) {
 
 // 스크롤을 채팅창 맨 아래로 이동하는 함수
 function scrollToBottom() {
-    const messages = document.querySelector('.messages');
-    messages.scrollTop = messages.scrollHeight;
+    try {
+        // 메시지 컨테이너 직접 참조 (ID로 안전하게 접근)
+        const messageArea = document.getElementById('message-container');
+        if (messageArea) {
+            messageArea.scrollTop = messageArea.scrollHeight;
+            console.log('스크롤을 맨 아래로 이동했습니다');
+        } else {
+            console.error('message-container 요소를 찾을 수 없습니다');
+        }
+    } catch (error) {
+        console.error('스크롤 처리 중 오류가 발생했습니다:', error);
+    }
 } 
