@@ -47,7 +47,7 @@ def handler(request):
         
         # 필수 파라미터 확인
         game_id = body.get('game_id')
-        message = body.get('message')
+        message = body.get('message', '')
         
         if not game_id:
             raise ValueError("게임 ID가 필요합니다.")
@@ -86,7 +86,85 @@ def handler(request):
         current_turn = game_session.get('current_turn', 1)
         max_turns = game_session.get('max_turns', 5)
         
-        # 턴 제한 확인
+        # 치트키 확인
+        victory = False
+        completed = False
+        
+        # 치트키: '승승리' 입력 시 즉시 승리
+        if message.strip() == '승승리':
+            victory = True
+            completed = True
+            ai_response = "치트키가 입력되었습니다. 승리 조건을 달성했습니다!"
+            
+            # 응답 데이터 생성
+            response_data = {
+                "game_id": game_id,
+                "response": ai_response,
+                "current_turn": current_turn,
+                "max_turns": max_turns,
+                "completed": completed,
+                "victory": victory
+            }
+            
+            # 세션 업데이트
+            game_session['completed'] = completed
+            game_session['victory'] = victory
+            GAME_SESSIONS[game_id] = game_session
+            
+            response, status_code = create_response(
+                success=True,
+                data=response_data
+            )
+            
+            return {
+                "statusCode": status_code,
+                "body": json.dumps(response),
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Headers": "Content-Type",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS"
+                }
+            }
+        
+        # 치트키: '패패배' 입력 시 즉시 실패
+        if message.strip() == '패패배':
+            completed = True
+            victory = False
+            ai_response = "치트키가 입력되었습니다. 게임에서 패배했습니다."
+            
+            # 응답 데이터 생성
+            response_data = {
+                "game_id": game_id,
+                "response": ai_response,
+                "current_turn": current_turn,
+                "max_turns": max_turns,
+                "completed": completed,
+                "victory": victory
+            }
+            
+            # 세션 업데이트
+            game_session['completed'] = completed
+            game_session['victory'] = victory
+            GAME_SESSIONS[game_id] = game_session
+            
+            response, status_code = create_response(
+                success=True,
+                data=response_data
+            )
+            
+            return {
+                "statusCode": status_code,
+                "body": json.dumps(response),
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Headers": "Content-Type",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS"
+                }
+            }
+        
+        # 턴 제한 확인 - 이미 max_turns를 초과한 경우에만 실패로 처리
         if current_turn > max_turns:
             response_data = {
                 "game_id": game_id,
@@ -179,8 +257,8 @@ def handler(request):
             # 턴 증가
             current_turn += 1
             
-            # 턴 제한 도달 시 게임 종료
-            if current_turn > max_turns:
+            # 턴 제한 도달 시 게임 종료 (마지막 턴에서도 승리 조건 확인)
+            if current_turn > max_turns and not victory:
                 completed = True
             
             # 세션 업데이트
