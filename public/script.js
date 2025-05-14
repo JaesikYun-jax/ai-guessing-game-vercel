@@ -28,14 +28,15 @@ const startSelectedBtn = document.getElementById('start-selected-btn');
 const startRandomBtn = document.getElementById('start-random-btn');
 const characterInfoElement = document.getElementById('character-info');
 
-// 서버 주소 설정 (Vercel 배포용 - API 경로는 상대 경로로 설정)
-const SERVER_URL = '';  // 빈 문자열은 현재 도메인의 상대 경로를 의미합니다
+// API 서버 URL 설정
+const API_BASE_URL = 'https://flask-vercel.vercel.app'; // 서버리스 API URL
+//const API_BASE_URL = 'http://localhost:5000'; // 로컬 개발용 URL
 
 // 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
 document.addEventListener('DOMContentLoaded', async () => {
     // 콘솔에 디버그 메시지 출력
     console.log('페이지 로드됨, 이벤트 리스너 설정 시작');
-    console.log('서버 URL:', SERVER_URL || '(상대 경로)');
+    console.log('서버 URL:', API_BASE_URL || '(상대 경로)');
     
     // 서버 상태 확인 시작
     await checkServerStatus();
@@ -102,8 +103,8 @@ async function checkServerStatus() {
         serverStatus.textContent = '서버 연결 중...';
         serverStatus.classList.remove('success-text', 'error-text');
         
-        console.log('서버 상태 API 요청:', `${SERVER_URL}/api/health`);
-        const response = await fetch(`${SERVER_URL}/api/health`);
+        console.log('서버 상태 API 요청:', `${API_BASE_URL}/api/health`);
+        const response = await fetch(`${API_BASE_URL}/api/health`);
         console.log('서버 상태 응답:', response.status, response.statusText);
         
         if (response.ok) {
@@ -148,9 +149,9 @@ async function checkServerStatus() {
 // 게임 항목 목록 가져오기
 async function fetchGameItems() {
     try {
-        console.log('게임 항목 목록 요청 시작:', `${SERVER_URL}/api/games`);
+        console.log('게임 항목 목록 요청 시작:', `${API_BASE_URL}/api/games`);
         
-        const response = await fetch(`${SERVER_URL}/api/games`);
+        const response = await fetch(`${API_BASE_URL}/api/games`);
         console.log('게임 항목 응답 상태:', response.status, response.statusText);
         
         if (!response.ok) {
@@ -265,7 +266,7 @@ async function handleStartGame(mode) {
         }
         
         console.log('서버에 게임 시작 요청 전송');
-        const response = await fetch(`${SERVER_URL}/api/start`, {
+        const response = await fetch(`${API_BASE_URL}/api/start`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -334,7 +335,7 @@ async function handleStartGame(mode) {
         // 게임 시작은 실패했지만, 서버는 연결됐을 수 있으므로 재확인
         try {
             // 빠른 상태 확인 요청
-            const healthCheck = await fetch(`${SERVER_URL}/api/health`);
+            const healthCheck = await fetch(`${API_BASE_URL}/api/health`);
             
             if (healthCheck.ok) {
                 // 서버는 살아있지만 게임 시작에 실패한 경우
@@ -430,7 +431,7 @@ async function handleSendMessage() {
 // AI에게 질문 요청
 async function askQuestion(message) {
     try {
-        const response = await fetch(`${SERVER_URL}/api/ask`, {
+        const response = await fetch(`${API_BASE_URL}/api/ask`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -515,7 +516,7 @@ async function handleEndGame() {
         
         endGameButton.disabled = true;
         
-        const response = await fetch(`${SERVER_URL}/api/end`, {
+        const response = await fetch(`${API_BASE_URL}/api/end`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -584,7 +585,7 @@ async function handleEndGame() {
 function handleBackToHome() {
     // 게임이 진행 중이면 서버에 종료 요청
     if (gameId && !gameEnded) {
-        fetch(`${SERVER_URL}/api/end`, {
+        fetch(`${API_BASE_URL}/api/end`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

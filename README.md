@@ -1,7 +1,40 @@
-# AI 추측 게임 (Vercel 배포 버전)
+# AI 추측 게임 클라이언트
 
-AI와 대화를 통해 다양한 상황에서 목표를 달성하는 웹 기반 게임입니다. 이 버전은 Vercel에 배포하기 위해 수정된 버전입니다.
-.
+이 저장소는 AI 추측 게임의 프론트엔드 클라이언트 코드를 포함하고 있습니다. 백엔드 API 서버는 별도의 저장소 [flask-vercel](https://github.com/JaesikYun-jax/flask-vercel)에서 관리됩니다.
+
+## 구조
+
+이 프로젝트는 정적 HTML, CSS, JavaScript로 구성된 클라이언트 애플리케이션입니다. Vercel에 정적 웹사이트로 배포됩니다.
+
+```
+ai-guessing-game-vercel/
+├── public/               # 배포되는 정적 파일들
+│   ├── index.html        # 메인 게임 페이지
+│   ├── script.js         # 게임 동작 관련 스크립트
+│   ├── style.css         # 스타일시트
+│   ├── admin.html        # 관리자 페이지
+│   └── admin.js          # 관리자 기능 스크립트
+└── vercel.json           # Vercel 배포 설정
+```
+
+## 로컬에서 실행하기
+
+클라이언트는 정적 파일로 구성되어 있어 간단히 웹 서버로 실행할 수 있습니다:
+
+```
+cd public
+python -m http.server 8000
+```
+
+그런 다음 브라우저에서 `http://localhost:8000`으로 접속합니다.
+
+## API 서버 연결
+
+이 클라이언트는 기본적으로 API 서버 [flask-vercel](https://github.com/JaesikYun-jax/flask-vercel)에 연결됩니다. 로컬에서 테스트하려면 `script.js` 파일에서 API 서버 주소를 변경해야 할 수 있습니다.
+
+## Vercel에 배포하기
+
+이 저장소는 Vercel에 정적 웹사이트로 배포됩니다. GitHub 저장소를 Vercel에 연결하기만 하면 자동으로 배포됩니다.
 
 ## Vercel 배포 방법
 
