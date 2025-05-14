@@ -29,8 +29,8 @@ const startRandomBtn = document.getElementById('start-random-btn');
 const characterInfoElement = document.getElementById('character-info');
 
 // API 서버 URL 설정
-const API_BASE_URL = 'https://flask-vercel-8o97stv4v-jaesikyun-jax.vercel.app'; // 새로운 서버리스 API URL
-//const API_BASE_URL = ''; // 상대 경로 사용시
+const API_BASE_URL = ''; // 상대 경로 사용 (기본)
+//const API_BASE_URL = 'https://flask-vercel-jaesikyun-jax.vercel.app'; // 서버리스 API URL
 //const API_BASE_URL = 'http://localhost:5000'; // 로컬 개발용 URL
 
 // 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
@@ -104,15 +104,42 @@ async function checkServerStatus() {
         serverStatus.textContent = '서버 연결 중...';
         serverStatus.classList.remove('success-text', 'error-text');
         
-        console.log('서버 상태 API 요청:', `${API_BASE_URL}/api/health`);
-        const response = await fetch(`${API_BASE_URL}/api/health`);
-        console.log('서버 상태 응답:', response.status, response.statusText);
+        // 요청 URL 출력
+        const healthUrl = `${API_BASE_URL}/api/health`;
+        console.log('서버 상태 API 요청 URL:', healthUrl);
+        
+        // 실제 요청 전송
+        console.log('요청 전송 시작...');
+        const response = await fetch(healthUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            mode: 'cors' // CORS 설정 명시적 지정
+        });
+        
+        console.log('서버 응답 받음:', response);
+        console.log('응답 상태:', response.status, response.statusText);
+        console.log('응답 헤더:', [...response.headers.entries()]);
         
         if (response.ok) {
-            const data = await response.json();
+            // 응답 텍스트 먼저 확인
+            const responseText = await response.text();
+            console.log('응답 원본 텍스트:', responseText);
+            
+            // JSON 파싱 시도
+            let data;
+            try {
+                data = JSON.parse(responseText);
+                console.log('파싱된 JSON 데이터:', data);
+            } catch (parseError) {
+                console.error('JSON 파싱 오류:', parseError);
+                throw new Error(`JSON 파싱 오류: ${parseError.message}`);
+            }
             
             // 서버 응답 성공 - status 필드 확인
-            if (data.status === 'online') {
+            if (data && data.status === 'online') {
                 console.log('서버 연결 성공');
                 serverStatus.textContent = '✅ 서버 연결 성공';
                 serverStatus.classList.add('success-text');
@@ -125,7 +152,8 @@ async function checkServerStatus() {
                 // 성공하면 60초마다 확인 (백그라운드에서 상태 유지)
                 setTimeout(checkServerStatus, 60000);
             } else {
-                throw new Error(`서버 상태가 온라인이 아닙니다: ${data.status}`);
+                console.error('서버 상태 필드 문제:', data);
+                throw new Error(`서버 상태가 'online'이 아닙니다: ${data ? data.status : '알 수 없음'}`);
             }
         } else {
             // 서버 응답은 받았지만 오류 코드 반환
@@ -134,6 +162,8 @@ async function checkServerStatus() {
         }
     } catch (error) {
         console.error('서버 연결 실패:', error);
+        console.error('에러 세부정보:', error.stack);
+        
         // 오류 메시지를 사용자 친화적으로 변경
         let errorMessage = '❌ 서버 연결 실패';
         
@@ -156,10 +186,24 @@ async function checkServerStatus() {
 // 게임 항목 목록 가져오기
 async function fetchGameItems() {
     try {
-        console.log('게임 항목 목록 요청 시작:', `${API_BASE_URL}/api/games`);
+        // 요청 URL 출력
+        const gamesUrl = `${API_BASE_URL}/api/games`;
+        console.log('게임 항목 목록 요청 URL:', gamesUrl);
         
-        const response = await fetch(`${API_BASE_URL}/api/games`);
-        console.log('게임 항목 응답 상태:', response.status, response.statusText);
+        // 실제 요청 전송
+        console.log('게임 목록 요청 전송 시작...');
+        const response = await fetch(gamesUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            mode: 'cors' // CORS 설정 명시적 지정
+        });
+        
+        console.log('게임 목록 응답 받음:', response);
+        console.log('응답 상태:', response.status, response.statusText);
+        console.log('응답 헤더:', [...response.headers.entries()]);
         
         if (!response.ok) {
             throw new Error(`서버 응답 오류: ${response.status}`);
@@ -172,8 +216,19 @@ async function fetchGameItems() {
             serverStatus.classList.remove('error-text');
         }
         
-        const data = await response.json();
-        console.log('게임 항목 데이터 수신:', data);
+        // 응답 텍스트 먼저 확인
+        const responseText = await response.text();
+        console.log('게임 목록 응답 원본 텍스트:', responseText);
+        
+        // JSON 파싱 시도
+        let data;
+        try {
+            data = JSON.parse(responseText);
+            console.log('파싱된 게임 목록 데이터:', data);
+        } catch (parseError) {
+            console.error('JSON 파싱 오류:', parseError);
+            throw new Error(`JSON 파싱 오류: ${parseError.message}`);
+        }
         
         if (data.success && Array.isArray(data.data)) {
             gameItems = data.data;
@@ -181,9 +236,53 @@ async function fetchGameItems() {
             populateGameSelect(gameItems);
         } else {
             console.error('게임 항목을 불러오는데 실패했습니다:', data.error || '알 수 없는 오류');
+            // 게임 목록이 비어있다면, 기본 더미 데이터 추가
+            if (!gameItems || gameItems.length === 0) {
+                console.log('더미 게임 데이터 사용 중...');
+                gameItems = [
+                    {
+                        id: "1", 
+                        title: "신비한 인물 찾기",
+                        category: "인물",
+                        character_name: "알 수 없는 인물",
+                        max_turns: 10
+                    },
+                    {
+                        id: "2",
+                        title: "플러팅 마스터",
+                        category: "대화",
+                        character_name: "이유나",
+                        max_turns: 5
+                    }
+                ];
+                populateGameSelect(gameItems);
+            }
         }
     } catch (error) {
         console.error('게임 항목 가져오기 실패:', error);
+        console.error('에러 세부정보:', error.stack);
+        
+        // 게임 목록이 비어있다면, 기본 더미 데이터 추가
+        if (!gameItems || gameItems.length === 0) {
+            console.log('오류 발생으로 더미 게임 데이터 사용 중...');
+            gameItems = [
+                {
+                    id: "1", 
+                    title: "신비한 인물 찾기",
+                    category: "인물",
+                    character_name: "알 수 없는 인물",
+                    max_turns: 10
+                },
+                {
+                    id: "2",
+                    title: "플러팅 마스터",
+                    category: "대화",
+                    character_name: "이유나",
+                    max_turns: 5
+                }
+            ];
+            populateGameSelect(gameItems);
+        }
     }
 }
 
@@ -501,8 +600,17 @@ async function askQuestion(message) {
 // 턴 표시기 업데이트
 function updateTurnIndicator(current, max) {
     try {
-        document.getElementById('current-turn').textContent = current;
-        document.getElementById('max-turns').textContent = max;
+        // 턴 인디케이터 직접 업데이트
+        turnIndicator.textContent = `턴: ${current}/${max}`;
+        
+        // 경고 색상 표시 (최대 턴의 70% 이상일 때)
+        if (current >= max * 0.7) {
+            turnIndicator.classList.add('warning-text');
+        } else {
+            turnIndicator.classList.remove('warning-text');
+        }
+        
+        console.log(`턴 업데이트: ${current}/${max}`);
     } catch (error) {
         console.error('턴 표시기 업데이트 중 오류:', error);
     }
