@@ -29,7 +29,8 @@ const startRandomBtn = document.getElementById('start-random-btn');
 const characterInfoElement = document.getElementById('character-info');
 
 // API 서버 URL 설정
-const API_BASE_URL = 'https://flask-vercel.vercel.app'; // 서버리스 API URL
+const API_BASE_URL = 'https://flask-vercel-8o97stv4v-jaesikyun-jax.vercel.app'; // 새로운 서버리스 API URL
+//const API_BASE_URL = ''; // 상대 경로 사용시
 //const API_BASE_URL = 'http://localhost:5000'; // 로컬 개발용 URL
 
 // 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
@@ -108,18 +109,24 @@ async function checkServerStatus() {
         console.log('서버 상태 응답:', response.status, response.statusText);
         
         if (response.ok) {
-            // 서버 응답 성공
-            console.log('서버 연결 성공');
-            serverStatus.textContent = '✅ 서버 연결 성공';
-            serverStatus.classList.add('success-text');
-            serverStatus.classList.remove('error-text');
-            startScreen.classList.remove('hidden');
+            const data = await response.json();
             
-            // 게임 항목 로드
-            fetchGameItems();
-            
-            // 성공하면 60초마다 확인 (백그라운드에서 상태 유지)
-            setTimeout(checkServerStatus, 60000);
+            // 서버 응답 성공 - status 필드 확인
+            if (data.status === 'online') {
+                console.log('서버 연결 성공');
+                serverStatus.textContent = '✅ 서버 연결 성공';
+                serverStatus.classList.add('success-text');
+                serverStatus.classList.remove('error-text');
+                startScreen.classList.remove('hidden');
+                
+                // 게임 항목 로드
+                fetchGameItems();
+                
+                // 성공하면 60초마다 확인 (백그라운드에서 상태 유지)
+                setTimeout(checkServerStatus, 60000);
+            } else {
+                throw new Error(`서버 상태가 온라인이 아닙니다: ${data.status}`);
+            }
         } else {
             // 서버 응답은 받았지만 오류 코드 반환
             console.error('서버 응답 오류:', response.status);
