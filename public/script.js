@@ -30,16 +30,66 @@ const characterInfoElement = document.getElementById('character-info');
 
 // API 서버 URL 설정
 const API_BASE_URL = 'https://flask-vercel-ebon.vercel.app'; // 새로운 서버 URL 사용
-//const API_BASE_URL = ''; // 상대 경로 사용 (기본)
-//const API_BASE_URL = 'https://flask-vercel-jaesikyun-jax.vercel.app'; // 서버리스 API URL
-//const API_BASE_URL = 'http://localhost:5000'; // 로컬 개발용 URL
+
+// 대체 API URL 목록
+const FALLBACK_API_URLS = [
+    'https://flask-vercel-ebon.vercel.app',
+    'https://flask-vercel-jaesikyun-jax.vercel.app',
+    '' // 상대 경로
+];
+
+// 대체 API URL 시도 인덱스
+let currentApiUrlIndex = 0;
+
+// 현재 사용중인 API URL 확인
+function getCurrentApiUrl() {
+    return currentApiUrlIndex < FALLBACK_API_URLS.length 
+        ? FALLBACK_API_URLS[currentApiUrlIndex] 
+        : API_BASE_URL;
+}
+
+// 다음 API URL로 변경
+function tryNextApiUrl() {
+    currentApiUrlIndex++;
+    if (currentApiUrlIndex >= FALLBACK_API_URLS.length) {
+        currentApiUrlIndex = 0; // 모든 URL을 시도했으면 다시 처음으로
+        return false; // 모든 URL 시도 완료
+    }
+    return true; // 다음 URL 시도 가능
+}
+
+// 오프라인 모드 응답에 사용할 더 자연스러운 응답
+const OFFLINE_RESPONSES = {
+    "인물": [
+        "흠... 제가 누구인지 맞추려면 좀 더 구체적인 질문이 필요할 것 같아요.",
+        "그건 제가 누구인지 맞추는데 중요한 단서가 될 수 있겠네요.",
+        "재미있는 질문이군요. 그 질문에 대한 답은...",
+        "좋은 추리네요! 하지만 아직 저를 완전히 맞추지는 못했어요.",
+        "그렇게 생각하시는군요. 흥미로운 관점입니다."
+    ],
+    "대화": [
+        "정말요? 그렇게 생각하시는 이유가 궁금해요.",
+        "음... 그 말을 들으니 생각이 많아지네요.",
+        "그런 생각을 가지고 계셨군요. 저는 조금 다르게 생각했어요.",
+        "와, 그런 이야기는 처음 들어봐요. 더 자세히 말씀해주세요.",
+        "그건 정말 인상적인 관점이에요. 저도 비슷한 경험이 있어요."
+    ],
+    "default": [
+        "흥미로운 질문이네요. 더 자세히 말씀해주실래요?",
+        "그렇군요. 다른 측면에서는 어떻게 생각하시나요?",
+        "재미있는 관점입니다. 제가 이해한 바로는...",
+        "질문해주셔서 감사합니다. 그것에 대해 생각해 본 적이 있는데...",
+        "좋은 지적이십니다. 더 구체적으로 말씀해주실 수 있을까요?",
+        "아주 흥미로운 주제를 제기하셨네요."
+    ]
+};
 
 // 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // 콘솔에 디버그 메시지 출력
         console.log('페이지 로드됨, 이벤트 리스너 설정 시작');
-        console.log('서버 URL:', API_BASE_URL || '(상대 경로)');
+        console.log('서버 URL:', getCurrentApiUrl() || '(상대 경로)');
         
         // 모든 DOM 요소가 존재하는지 확인
         validateDomElements();
@@ -168,7 +218,7 @@ async function checkServerStatus() {
         serverStatus.classList.remove('success-text', 'error-text');
         
         // 요청 URL 출력
-        const healthUrl = `${API_BASE_URL}/api/health`;
+        const healthUrl = `${getCurrentApiUrl()}/api/health`;
         console.log('서버 상태 API 요청 URL:', healthUrl);
         
         // CORS 디버깅을 위한 옵션 출력
@@ -202,7 +252,7 @@ async function checkServerStatus() {
             console.log('대안 엔드포인트 시도: /health');
             
             // 대안 API 경로 시도
-            const alternativeUrl = `${API_BASE_URL}/health`;
+            const alternativeUrl = `${getCurrentApiUrl()}/health`;
             console.log('대안 URL 시도:', alternativeUrl);
             
             try {
@@ -303,7 +353,7 @@ async function checkServerStatus() {
 async function fetchGameItems() {
     try {
         // 요청 URL 출력
-        const gamesUrl = `${API_BASE_URL}/api/games`;
+        const gamesUrl = `${getCurrentApiUrl()}/api/games`;
         console.log('게임 항목 목록 요청 URL:', gamesUrl);
         
         // 실제 요청 전송
@@ -327,7 +377,7 @@ async function fetchGameItems() {
             console.log('대안 엔드포인트 시도: /games');
             
             // 대안 API 경로 시도
-            const alternativeUrl = `${API_BASE_URL}/games`;
+            const alternativeUrl = `${getCurrentApiUrl()}/games`;
             console.log('대안 URL 시도:', alternativeUrl);
             
             try {
@@ -516,7 +566,7 @@ async function handleStartGame(mode) {
         console.log('게임 시작 요청 본문:', JSON.stringify(requestBody));
         
         // 요청 URL 설정
-        const startUrl = `${API_BASE_URL}/api/start`;
+        const startUrl = `${getCurrentApiUrl()}/api/start`;
         console.log('게임 시작 요청 URL:', startUrl);
         
         console.log('서버에 게임 시작 요청 전송');
@@ -538,7 +588,7 @@ async function handleStartGame(mode) {
             console.log('대안 엔드포인트 시도: /start');
             
             // 대안 API 경로 시도
-            const alternativeUrl = `${API_BASE_URL}/start`;
+            const alternativeUrl = `${getCurrentApiUrl()}/start`;
             console.log('대안 URL 시도:', alternativeUrl);
             
             try {
@@ -642,7 +692,7 @@ async function handleStartGame(mode) {
         // 게임 시작은 실패했지만, 서버는 연결됐을 수 있으므로 재확인
         try {
             // 빠른 상태 확인 요청
-            const healthCheck = await fetch(`${API_BASE_URL}/api/health`);
+            const healthCheck = await fetch(`${getCurrentApiUrl()}/api/health`);
             
             if (healthCheck.ok) {
                 // 서버는 살아있지만 게임 시작에 실패한 경우
@@ -799,14 +849,7 @@ async function handleSendMessage() {
 
 // 오프라인 모드 응답 처리
 function handleOfflineResponse(message) {
-    const responses = [
-        "흥미로운 질문이네요. 더 자세히 말씀해주실래요?",
-        "그렇군요. 다른 측면에서는 어떻게 생각하시나요?",
-        "재미있는 관점입니다. 제가 이해한 바로는...",
-        "질문해주셔서 감사합니다. 그것에 대해 생각해 본 적이 있는데...",
-        "좋은 지적이십니다. 더 구체적으로 말씀해주실 수 있을까요?",
-        "아주 흥미로운 주제를 제기하셨네요."
-    ];
+    const responses = OFFLINE_RESPONSES[message.category] || OFFLINE_RESPONSES.default;
     
     // 치트키 확인
     if (message.includes("승승리")) {
@@ -831,131 +874,185 @@ function handleOfflineResponse(message) {
 // AI에게 질문 요청
 async function askQuestion(message) {
     try {
-        const askUrl = `${API_BASE_URL}/api/ask`;
-        console.log('AI 질문 요청 URL:', askUrl);
-        console.log('질문 내용:', message);
+        // 게임 ID가 없으면 (서버 연결 안 됨) 오프라인 모드로 처리
+        if (!gameId) {
+            console.warn('게임 ID가 없어 오프라인 모드로 응답합니다.');
+            showUserMessage(message);
+            setTimeout(() => {
+                const offlineResponse = handleOfflineResponse({
+                    message: message,
+                    category: currentScenario ? currentScenario.category : 'default'
+                });
+                showAIMessage(offlineResponse);
+                updateTurnIndicator();
+            }, 1000);
+            return;
+        }
+
+        // 모든 API URL 시도
+        let allUrlsTried = false;
+        let responseData = null;
         
-        let response = await fetch(askUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                game_id: gameId,
-                message: message 
-            })
-        });
-        
-        console.log('AI 질문 응답 받음:', response);
-        console.log('응답 상태:', response.status, response.statusText);
-        console.log('응답 헤더:', [...response.headers.entries()]);
-        
-        // 404 에러 구체적으로 처리
-        if (response.status === 404) {
-            console.error('404 에러: 질문 API 엔드포인트를 찾을 수 없습니다');
-            console.log('대안 엔드포인트 시도: /ask');
-            
-            // 대안 API 경로 시도
-            const alternativeUrl = `${API_BASE_URL}/ask`;
-            console.log('대안 URL 시도:', alternativeUrl);
-            
+        while (!responseData && !allUrlsTried) {
             try {
-                const altResponse = await fetch(alternativeUrl, {
+                const askUrl = `${getCurrentApiUrl()}/api/ask`;
+                console.log('AI 질문 요청 URL:', askUrl);
+                console.log('게임 ID:', gameId);
+                console.log('질문 내용:', message);
+                
+                // 사용자 메시지 표시
+                showUserMessage(message);
+                
+                // 로딩 표시
+                showThinking();
+                
+                // 요청 본문 구성
+                const requestBody = {
+                    game_id: gameId,
+                    message: message
+                };
+                console.log('요청 본문:', JSON.stringify(requestBody));
+                
+                // API 요청
+                const response = await fetch(askUrl, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ 
-                        game_id: gameId,
-                        message: message 
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
-                console.log('대안 엔드포인트 응답:', altResponse);
+                console.log('응답 상태:', response.status);
                 
-                if (altResponse.ok) {
-                    console.log('대안 엔드포인트 성공!');
-                    response = altResponse;
+                // 응답이 성공적이지 않으면
+                if (!response.ok) {
+                    console.warn(`API 응답 오류 (${response.status}): ${response.statusText}`);
+                    
+                    // 대안 API 경로 시도
+                    const alternativeUrl = `${getCurrentApiUrl()}/ask`;
+                    console.log('대안 URL 시도:', alternativeUrl);
+                    
+                    const alternativeResponse = await fetch(alternativeUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+                    
+                    if (!alternativeResponse.ok) {
+                        console.warn(`대안 API 응답 오류 (${alternativeResponse.status}): ${alternativeResponse.statusText}`);
+                        
+                        // 다음 API URL 시도
+                        if (tryNextApiUrl()) {
+                            console.log(`다음 API URL로 시도: ${getCurrentApiUrl()}`);
+                            continue; // 다음 URL로 재시도
+                        } else {
+                            allUrlsTried = true;
+                            throw new Error(`모든 API URL에서 응답 실패: ${response.status} ${response.statusText}`);
+                        }
+                    } else {
+                        // 대안 경로 성공
+                        const text = await alternativeResponse.text();
+                        try {
+                            responseData = JSON.parse(text);
+                        } catch (parseError) {
+                            console.error('대안 API 응답 파싱 오류:', parseError, text);
+                            throw new Error('대안 API 응답 형식이 올바르지 않습니다.');
+                        }
+                    }
                 } else {
-                    throw new Error(`대안 엔드포인트도 실패: ${altResponse.status}`);
-                }
-            } catch (altError) {
-                console.error('대안 엔드포인트 호출 오류:', altError);
-                // 원래 오류로 계속 진행
-            }
-        }
-        
-        if (!response.ok) {
-            throw new Error(`서버 응답 오류: ${response.status}`);
-        }
-        
-        // 서버 연결 성공 시, 서버 상태 메시지 업데이트
-        if (!serverStatus.classList.contains('success-text')) {
-            serverStatus.textContent = '✅ 서버 연결 성공';
-            serverStatus.classList.add('success-text');
-            serverStatus.classList.remove('error-text');
-        }
-        
-        // 응답 텍스트 먼저 확인
-        const responseText = await response.text();
-        console.log('AI 응답 원본 텍스트:', responseText);
-        
-        // JSON 파싱 시도
-        let data;
-        try {
-            data = JSON.parse(responseText);
-            console.log('파싱된 AI 응답 데이터:', data);
-        } catch (parseError) {
-            console.error('JSON 파싱 오류:', parseError);
-            throw new Error(`JSON 파싱 오류: ${parseError.message}`);
-        }
-        
-        if (data.success) {
-            const result = data.data || {};
-            
-            // AI 응답 표시 (캐릭터 이름 사용)
-            const aiSender = result.character_name || characterName || 'AI';
-            const aiResponse = result.response || '응답을 생성하는 중 오류가 발생했습니다.';
-            addMessage(aiSender, aiResponse, 'ai-message');
-            
-            // 턴 업데이트
-            if (result.current_turn) {
-                currentTurn = result.current_turn;
-                updateTurnIndicator(currentTurn, maxTurns);
-            } else {
-                currentTurn++; // 서버가 턴 정보를 제공하지 않으면 수동으로 증가
-                updateTurnIndicator(currentTurn, maxTurns);
-            }
-            
-            // 게임 종료 확인
-            if (result.completed) {
-                gameEnded = true;
-                
-                // 승패 메시지 표시
-                if (result.victory) {
-                    addMessage('시스템', '축하합니다! 승리 조건을 달성했습니다!', 'system-message success-text');
-                } else {
-                    addMessage('시스템', '게임 오버! 턴 제한에 도달했습니다.', 'system-message error-text');
+                    // 정상 응답 처리
+                    const text = await response.text();
+                    try {
+                        responseData = JSON.parse(text);
+                    } catch (parseError) {
+                        console.error('API 응답 파싱 오류:', parseError, text);
+                        throw new Error('API 응답 형식이 올바르지 않습니다.');
+                    }
                 }
                 
-                // 게임 종료 컨트롤 표시
-                showGameOverControls();
-            } else if (currentTurn >= maxTurns) {
-                // 턴 제한에 도달했지만 서버에서 completed 플래그를 설정하지 않은 경우
-                gameEnded = true;
-                addMessage('시스템', '게임 오버! 턴 제한에 도달했습니다.', 'system-message error-text');
-                showGameOverControls();
+                // 응답 데이터 확인
+                if (!responseData || !responseData.message) {
+                    console.error('응답 데이터가 비어있거나 message 필드가 없습니다:', responseData);
+                    throw new Error('서버 응답 데이터 형식이 올바르지 않습니다.');
+                }
+                
+            } catch (fetchError) {
+                console.error('API 요청 오류:', fetchError);
+                
+                // 다음 API URL 시도
+                if (tryNextApiUrl()) {
+                    console.log(`다음 API URL로 시도: ${getCurrentApiUrl()}`);
+                } else {
+                    allUrlsTried = true;
+                    throw fetchError; // 모든 URL 시도 실패
+                }
             }
+        }
+        
+        // 로딩 종료
+        hideThinking();
+        
+        // 모든 API URL 시도 후에도 응답이 없으면 오프라인 모드로 처리
+        if (!responseData) {
+            console.warn('모든 API URL이 실패하여 오프라인 모드로 응답합니다.');
+            const offlineResponse = handleOfflineResponse({
+                message: message,
+                category: currentScenario ? currentScenario.category : 'default'
+            });
+            showAIMessage(offlineResponse);
         } else {
-            throw new Error(data.error || '알 수 없는 오류가 발생했습니다');
+            // 서버 응답 표시
+            const aiResponse = responseData.message;
+            showAIMessage(aiResponse);
+            
+            // 정답 여부 확인
+            if (responseData.correct === true) {
+                handleCorrectAnswer();
+            }
         }
-    } catch (error) {
-        console.error('질문 요청 중 오류:', error);
-        console.error('에러 세부정보:', error.stack);
         
-        // 사용자에게 오류 메시지 표시
-        addMessage('시스템', `질문 처리 중 오류가 발생했습니다: ${error.message}`, 'system-message error-text');
-        throw error;
+        // 턴 인디케이터 업데이트
+        updateTurnIndicator();
+        
+    } catch (error) {
+        console.error('질문 처리 중 오류 발생:', error);
+        hideThinking();
+        
+        // 오류 메시지 표시
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'error-message';
+        errorMessage.textContent = `응답을 생성하는 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}. 다시 시도하거나 새로고침해주세요.`;
+        
+        // 오프라인 모드 제안 표시
+        const offlineMessage = document.createElement('div');
+        offlineMessage.className = 'offline-suggestion';
+        offlineMessage.textContent = '서버 연결에 문제가 있는 것 같습니다. 오프라인 모드로 계속하시겠습니까?';
+        
+        const offlineButton = document.createElement('button');
+        offlineButton.textContent = '오프라인 모드 사용';
+        offlineButton.className = 'offline-button';
+        offlineButton.onclick = function() {
+            // 오프라인 모드 활성화
+            gameId = null;
+            errorMessage.remove();
+            offlineMessage.remove();
+            offlineButton.remove();
+            
+            // 오프라인 응답 생성
+            const offlineResponse = handleOfflineResponse({
+                message: message,
+                category: currentScenario ? currentScenario.category : 'default'
+            });
+            showAIMessage(offlineResponse);
+            updateTurnIndicator();
+        };
+        
+        messageContainer.appendChild(errorMessage);
+        messageContainer.appendChild(offlineMessage);
+        messageContainer.appendChild(offlineButton);
+        scrollToBottom();
     }
 }
 
@@ -994,7 +1091,7 @@ async function handleEndGame() {
         endGameButton.disabled = true;
         
         // 요청 URL 설정
-        const endUrl = `${API_BASE_URL}/api/end`;
+        const endUrl = `${getCurrentApiUrl()}/api/end`;
         console.log('게임 종료 요청 URL:', endUrl);
         
         // 요청 정보 로깅
@@ -1019,7 +1116,7 @@ async function handleEndGame() {
             console.log('대안 엔드포인트 시도: /end');
             
             // 대안 API 경로 시도
-            const alternativeUrl = `${API_BASE_URL}/end`;
+            const alternativeUrl = `${getCurrentApiUrl()}/end`;
             console.log('대안 URL 시도:', alternativeUrl);
             
             try {
@@ -1121,7 +1218,7 @@ async function handleEndGame() {
 function handleBackToHome() {
     // 게임이 진행 중이면 서버에 종료 요청
     if (gameId && !gameEnded) {
-        fetch(`${API_BASE_URL}/api/end`, {
+        fetch(`${getCurrentApiUrl()}/api/end`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
