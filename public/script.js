@@ -449,16 +449,58 @@ async function handleStartGame(mode) {
             console.log('변환된 게임 ID(숫자):', selectedItemId);
         }
         
+        // 요청 정보 로깅
+        const requestBody = { item_id: selectedItemId };
+        console.log('게임 시작 요청 본문:', JSON.stringify(requestBody));
+        
+        // 요청 URL 설정
+        const startUrl = `${API_BASE_URL}/api/start`;
+        console.log('게임 시작 요청 URL:', startUrl);
+        
         console.log('서버에 게임 시작 요청 전송');
-        const response = await fetch(`${API_BASE_URL}/api/start`, {
+        let response = await fetch(startUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ 
-                item_id: selectedItemId // 선택한 항목 ID (랜덤 모드인 경우 null)
-            })
+            body: JSON.stringify(requestBody)
         });
+        
+        console.log('게임 시작 응답 받음:', response);
+        console.log('응답 상태:', response.status, response.statusText);
+        console.log('응답 헤더:', [...response.headers.entries()]);
+        
+        // 404 에러 구체적으로 처리
+        if (response.status === 404) {
+            console.error('404 에러: 게임 시작 API 엔드포인트를 찾을 수 없습니다');
+            console.log('대안 엔드포인트 시도: /start');
+            
+            // 대안 API 경로 시도
+            const alternativeUrl = `${API_BASE_URL}/start`;
+            console.log('대안 URL 시도:', alternativeUrl);
+            
+            try {
+                const altResponse = await fetch(alternativeUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                console.log('대안 엔드포인트 응답:', altResponse);
+                
+                if (altResponse.ok) {
+                    console.log('대안 엔드포인트 성공!');
+                    response = altResponse;
+                } else {
+                    throw new Error(`대안 엔드포인트도 실패: ${altResponse.status}`);
+                }
+            } catch (altError) {
+                console.error('대안 엔드포인트 호출 오류:', altError);
+                // 원래 오류로 계속 진행
+            }
+        }
         
         if (!response.ok) {
             throw new Error(`서버 응답 오류: ${response.status}`);
@@ -471,8 +513,19 @@ async function handleStartGame(mode) {
             serverStatus.classList.remove('error-text');
         }
         
-        const data = await response.json();
-        console.log('서버 응답 수신:', data);
+        // 응답 텍스트 먼저 확인
+        const responseText = await response.text();
+        console.log('게임 시작 응답 원본 텍스트:', responseText);
+        
+        // JSON 파싱 시도
+        let data;
+        try {
+            data = JSON.parse(responseText);
+            console.log('파싱된 게임 시작 데이터:', data);
+        } catch (parseError) {
+            console.error('JSON 파싱 오류:', parseError);
+            throw new Error(`JSON 파싱 오류: ${parseError.message}`);
+        }
         
         if (data.success) {
             const result = data.data;
@@ -515,6 +568,7 @@ async function handleStartGame(mode) {
         }
     } catch (error) {
         console.error('게임 시작 실패:', error);
+        console.error('에러 세부정보:', error.stack);
         
         // 게임 시작은 실패했지만, 서버는 연결됐을 수 있으므로 재확인
         try {
@@ -526,50 +580,61 @@ async function handleStartGame(mode) {
                 serverStatus.textContent = '✅ 서버 연결 성공';
                 serverStatus.classList.add('success-text');
                 serverStatus.classList.remove('error-text');
-                addMessage('시스템', `게임 시작 실패: ${error.message}`, 'system-message error-text');
+                alert(`게임 시작 실패: ${error.message}`);
             } else {
                 // 서버 연결 자체에 문제가 있는 경우
                 serverStatus.textContent = '❌ 서버 연결 실패';
                 serverStatus.classList.add('error-text');
                 serverStatus.classList.remove('success-text');
+                alert('서버에 연결할 수 없습니다.');
                 
-                // 오프라인 모드 진입
-                gameId = 'offline-mode';
-                title = '오프라인 모드';
-                currentTurn = 1;
-                maxTurns = 5;
-                characterName = "AI";
-                
-                // UI 업데이트
-                gameIdElement.textContent = '게임 ID: 오프라인 모드';
-                categoryElement.textContent = '카테고리: 테스트';
-                titleElement.textContent = '시나리오: 오프라인 모드';
-                winConditionElement.textContent = '승리 조건: 없음 (테스트 모드)';
-                characterInfoElement.innerHTML = "서버가 연결되지 않아 제한된 기능으로 실행합니다.";
-                
-                updateTurnIndicator(currentTurn, maxTurns);
-                
-                // 시작 화면 숨김, 게임 화면 표시
-                startScreen.classList.add('hidden');
-                gameContainer.classList.remove('hidden');
-                
-                // 시스템 메시지 추가
-                addMessage('시스템', '오프라인 모드: 서버와 연결할 수 없습니다. 제한된 기능으로 실행합니다.', 'system-message warning-text');
-                
-                // 게임 상태 초기화
-                gameEnded = false;
+                // 오프라인 모드 진입 여부 확인
+                if (confirm('오프라인 모드로 게임을 시작하시겠습니까? (기능이 제한됩니다)')) {
+                    startOfflineGame();
+                }
             }
         } catch (healthError) {
             // 건강 확인 요청 자체가 실패한 경우
+            console.error('서버 상태 확인 실패:', healthError);
             serverStatus.textContent = '❌ 서버 연결 실패';
             serverStatus.classList.add('error-text');
             serverStatus.classList.remove('success-text');
-            addMessage('시스템', `게임 시작 실패: 서버에 연결할 수 없습니다`, 'system-message error-text');
+            alert('서버에 연결할 수 없습니다.');
         }
     } finally {
         startSelectedBtn.disabled = false;
         startRandomBtn.disabled = false;
     }
+}
+
+// 오프라인 모드 게임 시작 함수
+function startOfflineGame() {
+    // 오프라인 모드 게임 초기화
+    gameId = 'offline-mode';
+    title = '오프라인 모드';
+    currentTurn = 1;
+    maxTurns = 5;
+    characterName = "AI";
+    
+    // UI 업데이트
+    gameIdElement.textContent = '게임 ID: 오프라인 모드';
+    categoryElement.textContent = '카테고리: 테스트';
+    titleElement.textContent = '시나리오: 오프라인 모드';
+    winConditionElement.textContent = '승리 조건: 없음 (테스트 모드)';
+    characterInfoElement.innerHTML = "서버가 연결되지 않아 제한된 기능으로 실행합니다.";
+    
+    updateTurnIndicator(currentTurn, maxTurns);
+    
+    // 시작 화면 숨김, 게임 화면 표시
+    startScreen.classList.add('hidden');
+    gameContainer.classList.remove('hidden');
+    
+    // 시스템 메시지 추가
+    addMessage('시스템', '오프라인 모드: 서버와 연결할 수 없습니다. 제한된 기능으로 실행합니다.', 'system-message warning-text');
+    addMessage('AI', '오프라인 모드에서는 실제 AI 응답을 받을 수 없습니다. 메시지를 보내면 미리 준비된 응답이 표시됩니다.', 'ai-message');
+    
+    // 게임 상태 초기화
+    gameEnded = false;
 }
 
 // 메시지 전송 처리
@@ -589,18 +654,69 @@ async function handleSendMessage() {
         // 로딩 표시
         const loadingMessage = addMessage('시스템', '응답 생성 중...', 'system-message loading');
         
-        // API 호출
-        await askQuestion(message);
-        
-        // 로딩 메시지 제거
-        const container = document.getElementById('message-container');
-        container.removeChild(loadingMessage);
-        
-        // 입력 필드 활성화 (게임이 끝나지 않은 경우)
-        if (!gameEnded) {
-            userInput.disabled = false;
-            sendButton.disabled = false;
-            userInput.focus();
+        // 오프라인 모드인 경우
+        if (gameId === 'offline-mode') {
+            // 로딩 효과를 위해 약간의 지연
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // 로딩 메시지 제거
+            const container = document.getElementById('message-container');
+            container.removeChild(loadingMessage);
+            
+            // 오프라인 모드 응답 생성
+            handleOfflineResponse(message);
+            
+            // 턴 증가
+            currentTurn++;
+            updateTurnIndicator(currentTurn, maxTurns);
+            
+            // 최대 턴에 도달한 경우 게임 종료
+            if (currentTurn > maxTurns) {
+                gameEnded = true;
+                addMessage('시스템', '게임 오버! 턴 제한에 도달했습니다.', 'system-message error-text');
+                showGameOverControls();
+            } else {
+                // 입력 필드 활성화
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+            }
+        } else {
+            // 온라인 모드: API 호출
+            try {
+                await askQuestion(message);
+                
+                // 로딩 메시지 제거
+                const container = document.getElementById('message-container');
+                container.removeChild(loadingMessage);
+                
+                // 입력 필드 활성화 (게임이 끝나지 않은 경우)
+                if (!gameEnded) {
+                    userInput.disabled = false;
+                    sendButton.disabled = false;
+                    userInput.focus();
+                }
+            } catch (error) {
+                // API 오류 처리
+                console.error('API 호출 실패, 오프라인 응답으로 대체:', error);
+                
+                // 로딩 메시지 제거
+                const container = document.getElementById('message-container');
+                container.removeChild(loadingMessage);
+                
+                // 오프라인 응답 표시 (API 호출이 실패한 경우의 대체 응답)
+                addMessage('시스템', '서버 연결 오류. 기본 응답을 표시합니다.', 'system-message warning-text');
+                handleOfflineResponse(message);
+                
+                // 턴 증가
+                currentTurn++;
+                updateTurnIndicator(currentTurn, maxTurns);
+                
+                // 입력 필드 활성화
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+            }
         }
     } catch (error) {
         console.error('메시지 전송 중 오류:', error);
@@ -610,6 +726,37 @@ async function handleSendMessage() {
         userInput.disabled = false;
         sendButton.disabled = false;
     }
+}
+
+// 오프라인 모드 응답 처리
+function handleOfflineResponse(message) {
+    const responses = [
+        "흥미로운 질문이네요. 더 자세히 말씀해주실래요?",
+        "그렇군요. 다른 측면에서는 어떻게 생각하시나요?",
+        "재미있는 관점입니다. 제가 이해한 바로는...",
+        "질문해주셔서 감사합니다. 그것에 대해 생각해 본 적이 있는데...",
+        "좋은 지적이십니다. 더 구체적으로 말씀해주실 수 있을까요?",
+        "아주 흥미로운 주제를 제기하셨네요."
+    ];
+    
+    // 치트키 확인
+    if (message.includes("승승리")) {
+        addMessage('시스템', '치트키 활성화: 즉시 승리!', 'system-message success-text');
+        addMessage(characterName, "축하합니다! 승리 조건을 달성했습니다.", 'ai-message');
+        gameEnded = true;
+        showGameOverControls();
+        return;
+    } else if (message.includes("패패배")) {
+        addMessage('시스템', '치트키 활성화: 즉시 패배!', 'system-message error-text');
+        addMessage(characterName, "아쉽게도 게임에서 패배했습니다.", 'ai-message');
+        gameEnded = true;
+        showGameOverControls();
+        return;
+    }
+    
+    // 랜덤 응답 선택
+    const randomIndex = Math.floor(Math.random() * responses.length);
+    addMessage(characterName, responses[randomIndex], 'ai-message');
 }
 
 // AI에게 질문 요청
@@ -768,15 +915,57 @@ async function handleEndGame() {
         
         endGameButton.disabled = true;
         
-        const response = await fetch(`${API_BASE_URL}/api/end`, {
+        // 요청 URL 설정
+        const endUrl = `${API_BASE_URL}/api/end`;
+        console.log('게임 종료 요청 URL:', endUrl);
+        
+        // 요청 정보 로깅
+        const requestBody = { game_id: gameId };
+        console.log('게임 종료 요청 본문:', JSON.stringify(requestBody));
+        
+        let response = await fetch(endUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                game_id: gameId
-            })
+            body: JSON.stringify(requestBody)
         });
+        
+        console.log('게임 종료 응답 받음:', response);
+        console.log('응답 상태:', response.status, response.statusText);
+        console.log('응답 헤더:', [...response.headers.entries()]);
+        
+        // 404 에러 구체적으로 처리
+        if (response.status === 404) {
+            console.error('404 에러: 게임 종료 API 엔드포인트를 찾을 수 없습니다');
+            console.log('대안 엔드포인트 시도: /end');
+            
+            // 대안 API 경로 시도
+            const alternativeUrl = `${API_BASE_URL}/end`;
+            console.log('대안 URL 시도:', alternativeUrl);
+            
+            try {
+                const altResponse = await fetch(alternativeUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                console.log('대안 엔드포인트 응답:', altResponse);
+                
+                if (altResponse.ok) {
+                    console.log('대안 엔드포인트 성공!');
+                    response = altResponse;
+                } else {
+                    throw new Error(`대안 엔드포인트도 실패: ${altResponse.status}`);
+                }
+            } catch (altError) {
+                console.error('대안 엔드포인트 호출 오류:', altError);
+                // 원래 오류로 계속 진행
+            }
+        }
         
         if (!response.ok) {
             throw new Error(`서버 응답 오류: ${response.status}`);
@@ -789,7 +978,19 @@ async function handleEndGame() {
             serverStatus.classList.remove('error-text');
         }
         
-        const data = await response.json();
+        // 응답 텍스트 먼저 확인
+        const responseText = await response.text();
+        console.log('게임 종료 응답 원본 텍스트:', responseText);
+        
+        // JSON 파싱 시도
+        let data;
+        try {
+            data = JSON.parse(responseText);
+            console.log('파싱된 게임 종료 데이터:', data);
+        } catch (parseError) {
+            console.error('JSON 파싱 오류:', parseError);
+            throw new Error(`JSON 파싱 오류: ${parseError.message}`);
+        }
         
         if (data.success) {
             gameEnded = true;
@@ -827,7 +1028,12 @@ async function handleEndGame() {
         }
     } catch (error) {
         console.error('게임 종료 실패:', error);
+        console.error('에러 세부정보:', error.stack);
         addMessage('시스템', `오류: ${error.message}`, 'system-message error-text');
+        
+        // 오류가 있어도 UI는 게임 종료 상태로 변경
+        gameEnded = true;
+        showGameOverControls();
     } finally {
         endGameButton.disabled = false;
     }
