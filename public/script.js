@@ -523,31 +523,31 @@ async function fetchGameItems() {
 function useDefaultGameItems() {
     console.log('기본 게임 항목 사용');
     
-    // 기본 게임 항목 목록
+    // 기본 게임 항목 목록 - 서버의 실제 게임 데이터 반영
     const defaultItems = [
         {
             id: "1",
-            title: "역사적 인물",
-            category: "인물",
-            character_name: "유명한 역사 인물",
+            title: "플러팅 고수! 전화번호 따기",
+            category: "플러팅",
+            character_name: "윤지혜",
             max_turns: 5,
-            win_condition: "해당 역사적 인물이 누구인지 맞추기"
+            win_condition: "상대방의 전화번호를 얻어낸다"
         },
         {
             id: "2",
-            title: "영화 캐릭터",
-            category: "인물",
-            character_name: "유명한 영화 속 캐릭터",
-            max_turns: 5,
-            win_condition: "영화 속 캐릭터가 누구인지 맞추기"
+            title: "파티에서 번호 교환하기",
+            category: "플러팅",
+            character_name: "김민준",
+            max_turns: 4,
+            win_condition: "상대방과 번호를 교환한다"
         },
         {
             id: "3",
-            title: "유명한 발명품",
-            category: "사물",
-            character_name: "중요한 발명품",
-            max_turns: 5,
-            win_condition: "해당 발명품이 무엇인지 맞추기"
+            title: "꿈의 직장 면접 성공하기",
+            category: "면접",
+            character_name: "박상현",
+            max_turns: 10,
+            win_condition: "면접관을 설득해 일자리 제안을 받는다"
         }
     ];
     
@@ -789,7 +789,7 @@ async function askQuestion(gameId, question) {
             },
             body: JSON.stringify({
                 game_id: gameId,
-                question: question
+                message: question
             }),
             mode: 'cors'
         });
@@ -841,10 +841,10 @@ function processApiResponse(response) {
     
     try {
         // 메시지 추출
-        if (response.message) {
-            result.message = response.message;
-        } else if (response.response) {
+        if (response.response) {
             result.message = response.response;
+        } else if (response.message) {
+            result.message = response.message;
         } else if (typeof response === 'string') {
             result.message = response;
         } else {
@@ -877,6 +877,13 @@ function processApiResponse(response) {
         } else if (response.turn !== undefined) {
             result.currentTurn = response.turn;
         }
+        
+        // 오류 응답 확인
+        if (response.error) {
+            console.error('서버 오류 응답:', response.error);
+            result.message = `서버 오류: ${response.error}`;
+            throw new Error(response.error);
+        }
     } catch (error) {
         console.error('API 응답 처리 중 오류 발생:', error);
     }
@@ -887,8 +894,7 @@ function processApiResponse(response) {
 // 메시지 전송 처리 함수
 async function handleSendMessage() {
     // 입력 필드에서 메시지 가져오기
-    const messageInput = document.getElementById('message-input');
-    const message = messageInput.value.trim();
+    const message = userInput.value.trim();
     
     // 메시지가 비어있으면 처리하지 않음
     if (!message) {
@@ -897,9 +903,9 @@ async function handleSendMessage() {
     
     try {
         // 인터페이스 업데이트
-        messageInput.value = '';
-        messageInput.disabled = true;
-        document.getElementById('send-button').disabled = true;
+        userInput.value = '';
+        userInput.disabled = true;
+        sendButton.disabled = true;
         
         // 사용자 메시지 추가
         addMessage('나', message, 'user-message');
@@ -914,8 +920,8 @@ async function handleSendMessage() {
             console.log('게임이 이미 종료되었습니다.');
             removeMessage(loadingMessageId);
             addMessage('시스템', '게임이 이미 종료되었습니다. 새 게임을 시작하려면 "새 게임 시작" 버튼을 클릭하세요.', 'system-message');
-            messageInput.disabled = false;
-            document.getElementById('send-button').disabled = false;
+            userInput.disabled = false;
+            sendButton.disabled = false;
             return;
         }
         
@@ -962,9 +968,9 @@ async function handleSendMessage() {
         addMessage('시스템', `오류가 발생했습니다: ${error.message}. 다시 시도해주세요.`, 'system-message error-text');
     } finally {
         // 입력 필드 재활성화
-        messageInput.disabled = false;
-        document.getElementById('send-button').disabled = false;
-        messageInput.focus();
+        userInput.disabled = false;
+        sendButton.disabled = false;
+        userInput.focus();
     }
 }
 
