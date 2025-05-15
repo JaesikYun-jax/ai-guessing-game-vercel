@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 추측 게임</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI 추측 게임</h1>
+            <div id="server-status" class="status-indicator">서버 상태 확인 중...</div>
+        </header>
+
+        <!-- 게임 시작 화면 -->
+        <div id="start-screen" class="screen active">
+            <div class="game-selection">
+                <h2>게임 선택</h2>
+                <p>시작할 게임을 선택하거나 랜덤 게임을 플레이하세요.</p>
+                
+                <div class="selection-container">
+                    <select id="game-select" class="game-select">
+                        <option value="" disabled selected>-- 게임 선택 --</option>
+                        <!-- 게임 목록은 JS에서 동적으로 채워짐 -->
+                    </select>
+                    
+                    <div class="button-group">
+                        <button id="start-selected-btn" class="btn primary-btn" disabled>선택 게임 시작</button>
+                        <button id="start-random-btn" class="btn secondary-btn" disabled>랜덤 게임 시작</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 화면 -->
+        <div id="game-container" class="screen">
+            <div class="game-header">
+                <div class="game-info">
+                    <p id="game-id" class="info-item">게임 ID: -</p>
+                    <p id="category" class="info-item">카테고리: -</p>
+                    <p id="title" class="info-item">시나리오: -</p>
+                    <p id="win-condition" class="info-item">승리 조건: -</p>
+                </div>
+                <div id="character-info" class="info-item character-info">
+                    캐릭터 정보가 여기에 표시됩니다
+                </div>
+                <div id="turn-indicator" class="turn-indicator">
+                    <span class="current-turn">-</span> / <span class="max-turns">-</span>
+                </div>
+            </div>
+
+            <div id="message-container" class="message-container">
+                <!-- 메시지들이 여기에 동적으로 추가됨 -->
+                <div class="welcome-placeholder">
+                    게임을 시작하면 여기에 AI와의 대화가 표시됩니다
+                </div>
+            </div>
+
+            <div class="input-container">
+                <textarea id="user-input" class="user-input" placeholder="메시지를 입력하세요..." rows="3" maxlength="500"></textarea>
+                <div class="input-actions">
+                    <div id="char-counter" class="char-counter">0/500</div>
+                    <button id="send-btn" class="btn primary-btn">전송</button>
+                    <button id="end-game-btn" class="btn danger-btn">게임 종료</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 결과 화면 -->
+        <div id="result-screen" class="screen">
+            <div class="result-container">
+                <h2 id="result-title">게임 결과</h2>
+                <div id="result-message" class="result-message">
+                    결과가 여기에 표시됩니다
+                </div>
+                <div class="result-stats">
+                    <p id="turns-used">사용한 턴: -/-</p>
+                    <p id="final-outcome">결과: -</p>
+                </div>
+                <button id="new-game-btn" class="btn primary-btn">새 게임 시작</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2023 AI 추측 게임 - <a href="/">API 서버 정보</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html> 

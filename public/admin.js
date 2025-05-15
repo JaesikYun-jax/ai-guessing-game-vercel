@@ -7,95 +7,6 @@ let currentPage = 1;
 const itemsPerPage = 10;
 let promptsData = {}; // 프롬프트 데이터 추가
 
-// 서버 API URL 설정
-const API_BASE_URL = 'https://flask-vercel-ebon.vercel.app'; 
-
-// 대체 API URL 목록
-const FALLBACK_API_URLS = [
-    'https://flask-vercel-ebon.vercel.app',
-    'https://flask-vercel-jaesikyun-jax.vercel.app',
-    '' // 상대 경로
-];
-
-// 대체 API URL 시도 인덱스
-let currentApiUrlIndex = 0;
-
-// 현재 사용중인 API URL 확인
-function getCurrentApiUrl() {
-    return currentApiUrlIndex < FALLBACK_API_URLS.length 
-        ? FALLBACK_API_URLS[currentApiUrlIndex] 
-        : API_BASE_URL;
-}
-
-// 다음 API URL로 변경
-function tryNextApiUrl() {
-    currentApiUrlIndex++;
-    if (currentApiUrlIndex >= FALLBACK_API_URLS.length) {
-        currentApiUrlIndex = 0; // 모든 URL을 시도했으면 다시 처음으로
-        return false; // 모든 URL 시도 완료
-    }
-    return true; // 다음 URL 시도 가능
-}
-
-// 오프라인 모드 대체 데이터
-const OFFLINE_DATA = {
-    // 시나리오 더미 데이터
-    scenarios: [
-        {
-            id: "offline-scenario-1",
-            name: "오프라인 시나리오 1",
-            description: "인물 맞추기 게임",
-            category: "인물",
-            welcome_message: "안녕하세요! 저는 유명한 인물입니다. 제가 누구인지 맞춰보세요!",
-            error_message: "죄송합니다. 잘 이해하지 못했어요. 다른 질문을 해주세요.",
-            ai_name: "인물 AI",
-            max_turns: 20,
-            difficulty: "보통",
-            hidden_character: "스티브 잡스",
-            gpt_system_prompt: "당신은 스티브 잡스입니다. 질문에 그의 성격과 역사적 맥락에 맞게 대답하세요."
-        },
-        {
-            id: "offline-scenario-2",
-            name: "오프라인 시나리오 2",
-            description: "AI와 대화하기",
-            category: "대화",
-            welcome_message: "안녕하세요! 오늘 무엇에 대해 이야기해볼까요?",
-            error_message: "죄송합니다. 잘 이해하지 못했어요. 다른 질문을 해주세요.",
-            ai_name: "대화 AI",
-            max_turns: 15,
-            difficulty: "쉬움",
-            gpt_system_prompt: "당신은 친절한 AI 비서입니다. 질문에 도움이 되는 정보를 제공하세요."
-        }
-    ],
-    
-    // 프롬프트 더미 데이터
-    prompts: [
-        {
-            id: "offline-prompt-1",
-            category: "인물",
-            prompt: "당신은 {character_name}입니다. 질문자가 당신의 정체를 알아내려고 합니다. 정체를 직접적으로 밝히지 말고, 당신의 특징과 업적에 대해 간접적으로 대답하세요."
-        },
-        {
-            id: "offline-prompt-2",
-            category: "대화",
-            prompt: "당신은 친절한 AI 비서입니다. 사용자의 질문에 도움이 되는 정보를 제공하세요."
-        }
-    ],
-    
-    // 세션 더미 데이터
-    sessions: [
-        {
-            id: "offline-session-1",
-            scenario_id: "offline-scenario-1",
-            start_time: new Date().toISOString(),
-            end_time: null,
-            completed: false,
-            victory: false,
-            turns: 3
-        }
-    ]
-};
-
 // 페이지 로드시 초기화
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
@@ -1164,183 +1075,56 @@ async function saveItemPrompt() {
     }
 }
 
-// 오프라인 모드에서 더미 데이터 로드
+// 오프라인 모드용 더미 데이터 로드
 function loadDummyData() {
-    console.log('오프라인 모드에서 더미 데이터를 로드합니다.');
+    console.log('오프라인 모드용 더미 데이터 로드');
     
-    // UI 업데이트
-    displayMessage('오프라인 모드에서 작동 중입니다. 실제 데이터는 서버에 저장되지 않습니다.', 'warning');
+    // 더미 게임 아이템 데이터
+    itemsData = [
+        { id: 1, category: "인물", title: "신비한 인물 찾기", max_turns: 10, character_name: "알 수 없는 인물", win_condition: "인물 이름을 맞추세요" },
+        { id: 2, category: "대화", title: "플러팅 마스터", max_turns: 5, character_name: "이유나", win_condition: "상대방을 설득하세요" }
+    ];
     
-    // 모든 탭에 알림 추가
-    document.querySelectorAll('.main-content section').forEach(section => {
-        const offlineNotice = document.createElement('div');
-        offlineNotice.className = 'offline-notice alert alert-warning';
-        offlineNotice.textContent = '⚠️ 오프라인 모드: 변경사항은 저장되지 않습니다';
-        section.insertBefore(offlineNotice, section.firstChild);
+    // 더미 게임 세션 데이터
+    gamesData = [
+        { id: "game_12345", item_id: 1, started_at: new Date().toISOString(), completed: false, current_turn: 3, max_turns: 10 },
+        { id: "game_54321", item_id: 2, started_at: new Date(Date.now() - 86400000).toISOString(), completed: true, current_turn: 5, max_turns: 5, victory: true }
+    ];
+    
+    // 더미 프롬프트 데이터
+    promptsData = {
+        system_prompt: "당신은 게임 마스터로서 '{title}' 게임을 진행합니다. 카테고리: {category}. 승리 조건: {win_condition}. 턴 제한: {max_turns}.",
+        welcome_message: "안녕하세요! {title} 게임에 오신 것을 환영합니다.",
+        correct_answer_message: "축하합니다! 승리 조건({win_condition})을 달성했습니다!",
+        wrong_answer_message: "아쉽게도 이번에는 실패했습니다. 다시 도전해보세요!",
+        game_end_message: "게임이 종료되었습니다. 플레이해주셔서 감사합니다!",
+        error_messages: {
+            game_not_found: "게임을 찾을 수 없습니다.",
+            invalid_input: "잘못된 입력입니다."
+        },
+        ai_settings: {
+            model: "gpt-3.5-turbo",
+            max_tokens: 150,
+            temperature: 0.7
+        },
+        category_messages: {
+            "인물": "신비한 인물을 맞춰보세요!",
+            "대화": "상대방과 대화를 나눠보세요!"
+        }
+    };
+    
+    // 데이터 렌더링
+    renderItems();
+    renderGames();
+    renderStats({
+        total_games: 152,
+        completed_games: 98,
+        victory_rate: 64.29,
+        average_turns: 7.3,
+        most_played_category: "인물",
+        most_played_item: "신비한 인물 찾기"
     });
+    renderPrompts();
     
-    return OFFLINE_DATA;
-}
-
-// 로그인 양식 제출 처리
-async function handleLogin(event) {
-    event.preventDefault();
-    
-    const adminId = document.getElementById('admin-id').value.trim();
-    const adminPassword = document.getElementById('admin-password').value.trim();
-    
-    // 입력 검증
-    if (!adminId || !adminPassword) {
-        displayLoginMessage('아이디와 비밀번호를 모두 입력해주세요.', 'error');
-        return;
-    }
-    
-    console.log(`로그인 시도: ${adminId}`);
-    
-    try {
-        // 오프라인 모드 로그인 확인 (기본 관리자 계정)
-        if (adminId === 'admin' && adminPassword === 'admin123') {
-            console.log('오프라인 모드에서 기본 관리자 계정으로 로그인 성공');
-            
-            // 인증 상태 및 UI 업데이트
-            isAuthenticated = true;
-            authToken = 'offline-token';
-            
-            // 로그인 패널 숨기고 메인 패널 표시
-            document.getElementById('login-panel').style.display = 'none';
-            document.getElementById('main-panel').style.display = 'block';
-            
-            // 오프라인 더미 데이터 로드
-            itemsData = loadDummyData();
-            
-            // 시나리오 목록 표시
-            displayScenarios();
-            displayPrompts();
-            displaySessions();
-            
-            // 성공 메시지 표시
-            displayMessage('오프라인 모드에서 관리자로 로그인되었습니다.', 'info');
-            
-            return;
-        }
-        
-        // 서버 로그인 시도
-        const loginUrl = `${getCurrentApiUrl()}/api/admin/login`;
-        console.log('로그인 요청 URL:', loginUrl);
-        
-        const response = await fetch(loginUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                admin_id: adminId,
-                password: adminPassword
-            })
-        });
-        
-        console.log('로그인 응답 상태:', response.status);
-        
-        if (!response.ok) {
-            // 대안 엔드포인트 시도
-            const alternativeUrl = `${getCurrentApiUrl()}/admin/login`;
-            console.log('대안 URL 시도:', alternativeUrl);
-            
-            const alternativeResponse = await fetch(alternativeUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    admin_id: adminId,
-                    password: adminPassword
-                })
-            });
-            
-            if (!alternativeResponse.ok) {
-                // 다음 API URL 시도
-                let allUrlsTried = true;
-                
-                while (tryNextApiUrl()) {
-                    const nextUrl = `${getCurrentApiUrl()}/api/admin/login`;
-                    console.log('다음 API URL 시도:', nextUrl);
-                    
-                    try {
-                        const nextResponse = await fetch(nextUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                admin_id: adminId,
-                                password: adminPassword
-                            })
-                        });
-                        
-                        if (nextResponse.ok) {
-                            const data = await nextResponse.json();
-                            handleSuccessfulLogin(data);
-                            allUrlsTried = false;
-                            break;
-                        }
-                    } catch (error) {
-                        console.error('로그인 요청 실패:', error);
-                    }
-                }
-                
-                if (allUrlsTried) {
-                    throw new Error('서버 연결 실패. 오프라인 모드 로그인을 시도해보세요.');
-                }
-            } else {
-                const data = await alternativeResponse.json();
-                handleSuccessfulLogin(data);
-            }
-        } else {
-            const data = await response.json();
-            handleSuccessfulLogin(data);
-        }
-    } catch (error) {
-        console.error('로그인 오류:', error);
-        
-        // 오프라인 모드 제안 메시지 표시
-        displayLoginMessage(`로그인 실패: ${error.message}. 서버 연결에 문제가 있습니다. 오프라인 모드 로그인을 시도해보세요 (ID: admin, PW: admin123)`, 'error');
-        
-        // 오프라인 모드 로그인 안내 버튼 추가
-        const loginMessageArea = document.getElementById('login-message');
-        
-        // 이미 버튼이 있는지 확인
-        if (!document.getElementById('offline-login-btn')) {
-            const offlineButton = document.createElement('button');
-            offlineButton.id = 'offline-login-btn';
-            offlineButton.className = 'btn btn-warning mt-2';
-            offlineButton.textContent = '오프라인 모드로 로그인';
-            offlineButton.onclick = function() {
-                document.getElementById('admin-id').value = 'admin';
-                document.getElementById('admin-password').value = 'admin123';
-                displayLoginMessage('오프라인 모드 로그인 정보가 입력되었습니다. 로그인 버튼을 클릭하세요.', 'info');
-            };
-            
-            loginMessageArea.appendChild(offlineButton);
-        }
-    }
-}
-
-// 로그인 성공 처리
-function handleSuccessfulLogin(data) {
-    if (data.success) {
-        isAuthenticated = true;
-        authToken = data.token;
-        
-        // 로그인 패널 숨기고 메인 패널 표시
-        document.getElementById('login-panel').style.display = 'none';
-        document.getElementById('main-panel').style.display = 'block';
-        
-        // 시나리오 목록 가져오기
-        fetchItems();
-        
-        // 성공 메시지 표시
-        displayMessage('성공적으로 로그인되었습니다.', 'info');
-    } else {
-        displayLoginMessage(data.message || '로그인 실패: 알 수 없는 오류', 'error');
-    }
+    console.log('더미 데이터 로드 및 렌더링 완료');
 } 
