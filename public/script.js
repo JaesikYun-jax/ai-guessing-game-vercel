@@ -7,7 +7,6 @@ let title = "";
 let winCondition = "";
 let characterName = "AI"; // 캐릭터 이름
 let gameItems = []; // 게임 항목 목록
-let sessionStorageAvailable = false; // 세션 스토리지 사용 가능 여부
 
 // DOM 요소
 const serverStatus = document.getElementById('server-status');
@@ -33,52 +32,12 @@ const characterInfoElement = document.getElementById('character-info');
 const SERVER_URL = 'https://flask-vercel-ebon.vercel.app';
 const USE_TEST_MODE = true; // 테스트 모드 활성화
 
-// 세션 스토리지 사용 가능 여부 확인
-try {
-    sessionStorage.setItem('test', 'test');
-    sessionStorage.removeItem('test');
-    sessionStorageAvailable = true;
-    console.log('세션 스토리지 사용 가능');
-} catch (e) {
-    sessionStorageAvailable = false;
-    console.warn('세션 스토리지 사용 불가:', e);
-}
-
 // 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
 document.addEventListener('DOMContentLoaded', async () => {
     // 콘솔에 디버그 메시지 출력
     console.log('페이지 로드됨, 이벤트 리스너 설정 시작');
     console.log('서버 URL:', SERVER_URL);
     console.log('테스트 모드:', USE_TEST_MODE ? '활성화' : '비활성화');
-    
-    // 저장된 게임 세션 확인
-    if (sessionStorageAvailable) {
-        try {
-            const savedSession = sessionStorage.getItem('gameSession');
-            if (savedSession) {
-                const session = JSON.parse(savedSession);
-                console.log('저장된 게임 세션 발견:', session);
-                
-                // 세션이 최근 것인지 확인 (30분 이내)
-                const sessionTime = new Date(session.timestamp || 0);
-                const currentTime = new Date();
-                const timeDiff = (currentTime - sessionTime) / (1000 * 60); // 분 단위
-                
-                if (timeDiff < 30 && !session.completed) {
-                    // 유효한 최근 세션, 게임 복원
-                    console.log('유효한 게임 세션 복원');
-                    restoreGameSession(session);
-                } else {
-                    // 오래된 세션 또는 완료된 세션, 삭제
-                    console.log('만료된 세션 삭제 (경과 시간:', timeDiff, '분)');
-                    sessionStorage.removeItem('gameSession');
-                }
-            }
-        } catch (error) {
-            console.error('세션 복원 오류:', error);
-            sessionStorage.removeItem('gameSession');
-        }
-    }
     
     // 서버 상태 확인 시작
     await checkServerStatus();
@@ -113,88 +72,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 모든 버튼이 제대로 DOM에 있는지 확인
     checkButtonsExist();
 });
-
-// 게임 세션 복원 함수
-function restoreGameSession(session) {
-    if (!session) return;
-    
-    // 게임 상태 복원
-    gameId = session.gameId;
-    title = session.title;
-    currentTurn = session.currentTurn || 1;
-    maxTurns = session.maxTurns || 5;
-    winCondition = session.winCondition || "";
-    characterName = session.characterName || "AI";
-    gameEnded = session.completed || false;
-    
-    // UI 업데이트
-    gameIdElement.textContent = `게임 ID: ${gameId}`;
-    categoryElement.textContent = `카테고리: ${session.category || ""}`;
-    titleElement.textContent = `시나리오: ${title}`;
-    winConditionElement.textContent = `승리 조건: ${winCondition}`;
-    updateTurnIndicator(currentTurn, maxTurns);
-    
-    if (session.characterInfo) {
-        characterInfoElement.textContent = session.characterInfo;
-    }
-    
-    // 메시지 복원
-    if (session.messages && Array.isArray(session.messages)) {
-        session.messages.forEach(msg => {
-            addMessage(msg.sender, msg.text, msg.className);
-        });
-    }
-    
-    // 게임 화면 표시 및 시작 화면 숨기기
-    startScreen.classList.add('hidden');
-    gameContainer.classList.remove('hidden');
-    
-    // 게임 종료된 경우 컨트롤 업데이트
-    if (gameEnded) {
-        showGameOverControls();
-    }
-    
-    // 메시지 영역 스크롤
-    scrollToBottom();
-}
-
-// 게임 세션 저장 함수
-function saveGameSession() {
-    if (!sessionStorageAvailable || !gameId) return;
-    
-    // 메시지 수집
-    const messages = [];
-    const messageElements = messageContainer.querySelectorAll('.message');
-    messageElements.forEach(el => {
-        const sender = el.classList.contains('user-message') ? 'user' : 'ai';
-        const text = el.textContent;
-        const className = sender === 'user' ? 'user-message' : 'ai-message';
-        messages.push({ sender, text, className });
-    });
-    
-    // 게임 세션 객체 생성
-    const session = {
-        gameId,
-        title,
-        category: categoryElement.textContent.replace('카테고리: ', ''),
-        currentTurn,
-        maxTurns,
-        winCondition,
-        characterName,
-        characterInfo: characterInfoElement.textContent,
-        completed: gameEnded,
-        messages,
-        timestamp: new Date().toISOString()
-    };
-    
-    // 세션 저장
-    try {
-        sessionStorage.setItem('gameSession', JSON.stringify(session));
-        console.log('게임 세션 저장됨:', session);
-    } catch (error) {
-        console.error('게임 세션 저장 오류:', error);
-    }
-}
 
 // 버튼이 DOM에 제대로 있는지 확인하는 함수
 function checkButtonsExist() {
@@ -448,9 +325,6 @@ async function handleStartGame(mode) {
             
             // 입력란에 포커스
             userInput.focus();
-            
-            // 게임 세션 저장
-            saveGameSession();
         } else {
             throw new Error(data.error || '게임을 시작하는데 실패했습니다.');
         }
@@ -563,9 +437,6 @@ async function askQuestion(message) {
             // 게임 종료 UI 업데이트
             showGameOverControls();
         }
-        
-        // 게임 세션 저장
-        saveGameSession();
     } catch (error) {
         console.error('AI 응답 가져오기 실패:', error);
         throw error;
@@ -633,11 +504,6 @@ async function handleEndGame() {
         
         // 게임 종료 UI 업데이트
         showGameOverControls();
-        
-        // 세션 스토리지에서 게임 삭제
-        if (sessionStorageAvailable) {
-            sessionStorage.removeItem('gameSession');
-        }
     } catch (error) {
         console.error('게임 종료 오류:', error);
         alert(`게임을 종료하는데 문제가 발생했습니다: ${error.message}`);
@@ -669,11 +535,6 @@ function handleBackToHome() {
     
     // 게임 항목 새로고침
     fetchGameItems();
-    
-    // 세션 스토리지에서 게임 삭제
-    if (sessionStorageAvailable) {
-        sessionStorage.removeItem('gameSession');
-    }
 }
 
 // 메시지 추가 함수
