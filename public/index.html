@@ -3,174 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 추측 게임 - Vercel API 서버</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
-            color: #333;
-        }
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        .status {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            border-left: 5px solid #28a745;
-        }
-        .status.offline {
-            border-left-color: #dc3545;
-        }
-        .endpoint {
-            background-color: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-        }
-        .method {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 0.8em;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-        .get {
-            background-color: #61affe;
-            color: white;
-        }
-        .post {
-            background-color: #49cc90;
-            color: white;
-        }
-        pre {
-            background-color: #f5f5f5;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-        }
-        a {
-            color: #3498db;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-        footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            text-align: center;
-            font-size: 0.9em;
-            color: #777;
-        }
-    </style>
+    <title>상황 대처 게임</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
 </head>
 <body>
-    <header>
-        <h1>AI 추측 게임 API 서버</h1>
-        <p>Flask로 개발되고 Vercel에 배포된 서버리스 API 서버입니다.</p>
-    </header>
+    <div class="container">
+        <header>
+            <h1>🎭 상황 대처 게임 🎭</h1>
+            <p>다양한 상황에서 대화를 통해 승리 조건을 달성하세요!</p>
+        </header>
 
-    <div class="status" id="server-status">
-        <h3>서버 상태 확인 중...</h3>
-        <p>API 서버 상태를 확인하고 있습니다.</p>
-    </div>
+        <div id="game-status" class="status">
+            <p id="server-status">서버 연결 중...</p>
+        </div>
 
-    <h2>API 엔드포인트</h2>
-    
-    <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/health</code>
-        <p>서버 상태 확인 API</p>
-    </div>
-    
-    <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/games</code>
-        <p>사용 가능한 게임 항목 목록 조회</p>
-    </div>
-    
-    <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/start</code>
-        <p>새 게임 시작</p>
-        <pre>{
-  "item_id": 1  // (선택 사항) 특정 게임 항목 ID
-}</pre>
-    </div>
-    
-    <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/ask</code>
-        <p>AI에게 질문하기</p>
-        <pre>{
-  "game_id": "game_xxx",
-  "message": "사용자 질문"
-}</pre>
-    </div>
-    
-    <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/end</code>
-        <p>게임 종료</p>
-        <pre>{
-  "game_id": "game_xxx"
-}</pre>
-    </div>
-
-    <h2>치트키</h2>
-    <p>테스트용 치트키 기능이 구현되어 있습니다:</p>
-    <ul>
-        <li><code>승승리</code>: 즉시 게임에서 승리합니다.</li>
-        <li><code>패패배</code>: 즉시 게임에서 패배합니다.</li>
-    </ul>
-
-    <footer>
-        <p>&copy; 2023 AI 추측 게임. Vercel에서 제공되는 서버리스 Flask 애플리케이션입니다.</p>
-    </footer>
-
-    <script>
-        // 서버 상태 확인
-        async function checkServerStatus() {
-            const statusElement = document.getElementById('server-status');
+        <div id="game-container" class="hidden">
+            <div class="game-header">
+                <div id="game-info">
+                    <p id="game-id">게임 ID: </p>
+                    <p id="category">카테고리: </p>
+                    <p id="title">시나리오: </p>
+                    <p id="win-condition">승리 조건: </p>
+                </div>
+                <div id="turn-indicator" class="turn-indicator">
+                    <span id="current-turn">1</span>/<span id="max-turns">5</span>
+                </div>
+            </div>
             
-            try {
-                const response = await fetch('/api/health');
-                const data = await response.json();
-                
-                if (data.status === 'healthy') {
-                    statusElement.innerHTML = `
-                        <h3>✅ 서버 온라인</h3>
-                        <p>${data.message || '서버가 정상적으로 작동 중입니다.'}</p>
-                    `;
-                    statusElement.classList.remove('offline');
-                } else {
-                    throw new Error('서버 상태가 healthy가 아닙니다.');
-                }
-            } catch (error) {
-                statusElement.innerHTML = `
-                    <h3>❌ 서버 오프라인</h3>
-                    <p>API 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.</p>
-                    <p>오류: ${error.message}</p>
-                `;
-                statusElement.classList.add('offline');
-            }
-        }
-        
-        // 페이지 로드 시 서버 상태 확인
-        window.addEventListener('load', checkServerStatus);
-    </script>
+            <p id="character-info" class="character-info"></p>
+
+            <div class="messages">
+                <div id="message-container"></div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <input type="text" id="user-input" placeholder="메시지를 입력하세요" maxlength="100">
+                    <div id="char-counter" class="char-counter">0/100</div>
+                </div>
+                <button id="send-btn"></button>
+            </div>
+
+            <div class="instructions">
+                <h3>게임 방법</h3>
+                <p>1. 주어진 상황에서 AI와 대화를 나누세요.</p>
+                <p>2. 제한된 턴 안에 승리 조건을 달성하는 것이 목표입니다.</p>
+                <p>3. 상황에 맞는 적절한 대화 전략을 사용하세요.</p>
+            </div>
+
+            <div class="game-controls">
+                <button id="end-game-btn" class="end-btn">게임 종료</button>
+                <button id="new-game-btn" class="new-btn hidden">새 게임 시작</button>
+            </div>
+        </div>
+
+        <div id="start-screen">
+            <h2>상황 대처 게임에 오신 것을 환영합니다!</h2>
+            <p>대화를 통해 다양한 상황을 해결하고 목표를 달성하세요.</p>
+            <p>플러팅, 면접, 물건 판매 등 다양한 상황에서 당신의 대화 능력을 시험해보세요!</p>
+            
+            <div class="game-selection">
+                <div class="selection-group">
+                    <label for="game-select">게임 선택:</label>
+                    <select id="game-select" class="game-dropdown">
+                        <option value="">-- 상황 선택 --</option>
+                        <!-- 여기에 서버에서 받아온 게임 목록이 채워집니다 -->
+                    </select>
+                </div>
+                <div class="button-group">
+                    <button type="button" id="start-selected-btn" class="start-btn">선택 게임 시작</button>
+                    <button type="button" id="start-random-btn" class="start-btn random-btn">랜덤 게임 시작</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html> 
