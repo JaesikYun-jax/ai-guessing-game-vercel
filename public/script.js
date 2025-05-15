@@ -954,335 +954,232 @@ function startOfflineGame() {
 
 // 메시지 전송 처리
 async function handleSendMessage() {
-    try {
-        const message = userInput.value.trim();
-        if (!message) return;
-        
-        // 입력 필드 비우기 및 비활성화
-        userInput.value = '';
-        userInput.disabled = true;
-        sendButton.disabled = true;
-        
-        // 사용자 메시지 표시
-        addMessage('사용자', message, 'user-message');
-        
-        // 로딩 표시
-        const loadingMessage = addMessage('시스템', '응답 생성 중...', 'system-message loading');
-        
-        try {
-            // 오프라인 모드인 경우
-            if (gameId === 'offline-mode') {
-                // 로딩 효과를 위해 약간의 지연
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // 로딩 메시지 제거
-                if (loadingMessage && loadingMessage.parentNode) {
-                    loadingMessage.parentNode.removeChild(loadingMessage);
-                }
-                
-                // 오프라인 모드 응답 생성
-                const offlineResponse = handleOfflineResponse({
-                    message: message,
-                    category: currentScenario ? currentScenario.category : 'default'
-                });
-                addMessage(characterName, offlineResponse, 'ai-message');
-                
-                // 턴 증가
-                currentTurn++;
-                updateTurnIndicator(currentTurn, maxTurns);
-                
-                // 최대 턴에 도달한 경우 게임 종료
-                if (currentTurn > maxTurns) {
-                    gameEnded = true;
-                    addMessage('시스템', '게임 오버! 턴 제한에 도달했습니다.', 'system-message error-text');
-                    showGameOverControls();
-                }
-            } else {
-                // 온라인 모드: API 호출
-                await askQuestion(message);
-                
-                // 로딩 메시지 제거
-                if (loadingMessage && loadingMessage.parentNode) {
-                    loadingMessage.parentNode.removeChild(loadingMessage);
-                }
-            }
-        } catch (error) {
-            console.error('메시지 처리 중 오류:', error);
-            
-            // 로딩 메시지 제거
-            if (loadingMessage && loadingMessage.parentNode) {
-                loadingMessage.parentNode.removeChild(loadingMessage);
-            }
-            
-            // 오류 메시지 표시 (askQuestion에서 이미 처리되었을 수 있음)
-            if (!document.querySelector('.error-text')) {
-                addMessage('시스템', `오류: ${error.message}`, 'system-message error-text');
-            }
-        } finally {
-            // 입력 필드 재활성화 (게임이 끝나지 않은 경우)
-            if (!gameEnded) {
-                userInput.disabled = false;
-                sendButton.disabled = false;
-                userInput.focus();
-            }
-        }
-    } catch (error) {
-        console.error('메시지 전송 중 오류:', error);
-        addMessage('시스템', `오류: ${error.message}`, 'system-message error-text');
-        
-        // 입력 필드 재활성화
-        userInput.disabled = false;
-        sendButton.disabled = false;
-    }
-}
-
-// 오프라인 모드 응답 처리
-function handleOfflineResponse(message) {
-    const responses = OFFLINE_RESPONSES[message.category] || OFFLINE_RESPONSES.default;
+    // 입력 필드에서 메시지 가져오기
+    const messageInput = document.getElementById('message-input');
+    const message = messageInput.value.trim();
     
-    // 치트키 확인
-    if (message.includes("승승리")) {
-        addMessage('시스템', '치트키 활성화: 즉시 승리!', 'system-message success-text');
-        addMessage(characterName, "축하합니다! 승리 조건을 달성했습니다.", 'ai-message');
-        gameEnded = true;
-        showGameOverControls();
-        return;
-    } else if (message.includes("패패배")) {
-        addMessage('시스템', '치트키 활성화: 즉시 패배!', 'system-message error-text');
-        addMessage(characterName, "아쉽게도 게임에서 패배했습니다.", 'ai-message');
-        gameEnded = true;
-        showGameOverControls();
+    // 메시지가 비어있으면 처리하지 않음
+    if (!message) {
         return;
     }
     
-    // 랜덤 응답 선택
-    const randomIndex = Math.floor(Math.random() * responses.length);
-    addMessage(characterName, responses[randomIndex], 'ai-message');
-}
-
-// AI에게 질문 요청
-async function askQuestion(message) {
     try {
-        console.log('===== AI 질문 요청 시작 =====');
-        console.log('게임 ID:', gameId);
-        console.log('질문 내용:', message);
+        // 인터페이스 업데이트
+        messageInput.value = '';
+        messageInput.disabled = true;
+        document.getElementById('send-button').disabled = true;
         
-        // 게임 ID가 없으면 (서버 연결 안 됨) 오프라인 모드로 처리
-        if (!gameId) {
-            console.warn('게임 ID가 없어 오프라인 모드로 응답합니다.');
-            gameId = 'offline-mode'; // 오프라인 모드 표시
-            setTimeout(() => {
-                const offlineResponse = handleOfflineResponse({
-                    message: message,
-                    category: currentScenario ? currentScenario.category : 'default'
-                });
-                addMessage(characterName, offlineResponse, 'ai-message');
-                currentTurn++;
-                updateTurnIndicator(currentTurn, maxTurns);
-            }, 1000);
+        // 사용자 메시지 추가
+        addMessage('나', message, 'user-message');
+        
+        // 로딩 메시지 표시
+        const loadingMessageId = addMessage('AI', '...', 'ai-message loading');
+        
+        // 게임 식별자 가져오기
+        const gameId = document.getElementById('game-id').textContent;
+        console.log('현재 게임 ID:', gameId);
+        
+        // 게임이 이미 종료되었는지 확인
+        if (gameEnded) {
+            console.log('게임이 이미 종료되었습니다.');
+            removeMessage(loadingMessageId);
+            addMessage('시스템', '게임이 이미 종료되었습니다. 새 게임을 시작하려면 "새 게임 시작" 버튼을 클릭하세요.', 'system-message');
+            messageInput.disabled = false;
+            document.getElementById('send-button').disabled = false;
             return;
         }
-
-        // 요청 URL 설정
-        const askUrl = `${getCurrentApiUrl()}/api/ask`;
-        console.log('게임 질문 요청 URL:', askUrl);
         
-        // 요청 본문 구성
-        const requestBody = {
-            game_id: gameId,
-            message: message
-        };
-        console.log('요청 본문:', JSON.stringify(requestBody));
-        
-        // API 요청
-        const response = await fetch(askUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        console.log('응답 상태:', response.status, response.statusText);
-        
-        // 응답이 성공적이지 않으면
-        if (!response.ok) {
-            console.warn(`API 응답 오류 (${response.status}): ${response.statusText}`);
+        // 온라인/오프라인 모드 확인
+        if (!navigator.onLine || !gameId || gameId === 'offline-mode') {
+            console.log('오프라인 모드에서 실행 중입니다.');
             
-            // 대안 API 경로 시도
-            const alternativeUrl = `${getCurrentApiUrl()}/ask`;
-            console.log('대안 URL 시도:', alternativeUrl);
+            // 로딩 메시지 제거
+            removeMessage(loadingMessageId);
             
-            try {
-                const alternativeResponse = await fetch(alternativeUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                if (alternativeResponse.ok) {
-                    console.log('대안 API 경로 성공');
-                    const text = await alternativeResponse.text();
-                    console.log('대안 경로 응답 텍스트:', text);
-                    
-                    try {
-                        const jsonData = JSON.parse(text);
-                        return processApiResponse(jsonData);
-                    } catch (parseError) {
-                        console.error('대안 응답 파싱 오류:', parseError);
-                        throw new Error(`응답 파싱 오류: ${parseError.message}`);
-                    }
-                } else {
-                    console.error(`대안 API 경로도 실패: ${alternativeResponse.status}`);
-                    throw new Error(`API 응답 오류: ${alternativeResponse.status} ${alternativeResponse.statusText}`);
-                }
-            } catch (altError) {
-                console.error('대안 API 요청 오류:', altError);
-                throw altError;
+            // 오프라인 응답 생성
+            const offlineResponse = await generateOfflineResponse(message);
+            addMessage(characterName, offlineResponse.response, 'ai-message');
+            
+            // 치트 코드 확인
+            if (message.toLowerCase() === 'win now') {
+                addMessage('시스템', '치트 코드: 승리했습니다!', 'system-message success-text');
+                gameEnded = true;
+                showGameOverControls();
+            } else if (message.toLowerCase() === 'lose now') {
+                addMessage('시스템', '치트 코드: 패배했습니다!', 'system-message');
+                gameEnded = true;
+                showGameOverControls();
+            }
+            
+            // 턴 업데이트
+            currentTurn++;
+            updateTurnIndicator(currentTurn, maxTurns);
+            
+            // 최대 턴에 도달한 경우 게임 종료
+            if (currentTurn > maxTurns && !gameEnded) {
+                gameEnded = true;
+                addMessage('시스템', '최대 턴 수에 도달했습니다. 게임이 종료되었습니다.', 'system-message');
+                showGameOverControls();
             }
         } else {
-            // 정상 응답 처리
-            const text = await response.text();
-            console.log('API 응답 원본 텍스트:', text);
+            // 온라인 모드: API 호출
+            const response = await askQuestion(gameId, message);
             
-            // 빈 응답 확인
-            if (!text || text.trim() === '') {
-                console.error('서버가 빈 응답을 반환했습니다.');
-                throw new Error('서버가 빈 응답을 반환했습니다.');
+            // 로딩 메시지 제거
+            removeMessage(loadingMessageId);
+            
+            // 응답 처리
+            const { message: aiMessage, isGameOver, isVictory, currentTurn: newTurn } = processApiResponse(response);
+            
+            // AI 메시지 표시
+            addMessage(characterName, aiMessage, 'ai-message');
+            
+            // 게임 상태 업데이트
+            if (isGameOver) {
+                console.log(`게임 종료: 승리=${isVictory}`);
+                gameEnded = true;
+                
+                // 승리/패배 메시지 표시
+                if (isVictory) {
+                    addMessage('시스템', '축하합니다! 게임에서 승리했습니다!', 'system-message success-text');
+                } else {
+                    addMessage('시스템', '게임이 종료되었습니다. 다음에 다시 도전해보세요!', 'system-message');
+                }
+                
+                // 게임 종료 컨트롤 표시
+                showGameOverControls();
             }
             
-            try {
-                const jsonData = JSON.parse(text);
-                return processApiResponse(jsonData);
-            } catch (parseError) {
-                console.error('API 응답 파싱 오류:', parseError);
-                throw new Error(`응답 파싱 오류: ${parseError.message}`);
-            }
+            // 턴 업데이트
+            currentTurn = newTurn;
+            updateTurnIndicator(currentTurn, maxTurns);
         }
     } catch (error) {
-        console.error('askQuestion 에러:', error);
-        addMessage('시스템', `오류가 발생했습니다: ${error.message}. 다시 시도하세요.`, 'system-message error-text');
-        throw error;
+        console.error('메시지 전송 중 오류 발생:', error);
+        addMessage('시스템', `오류가 발생했습니다: ${error.message}. 다시 시도해주세요.`, 'system-message error-text');
+    } finally {
+        // 입력 필드 재활성화
+        messageInput.disabled = false;
+        document.getElementById('send-button').disabled = false;
+        messageInput.focus();
     }
 }
 
-// API 응답 처리 함수
-function processApiResponse(responseData) {
-    console.log('응답 데이터 처리 시작:', responseData);
+// 오프라인 응답 생성 함수
+async function generateOfflineResponse(message) {
+    console.log('오프라인 응답 생성 중: ', message);
     
-    // 응답에서 메시지 추출
-    let message = null;
-    let gameOver = false;
-    let victory = false;
-    let nextTurn = currentTurn + 1;
+    // 치트 코드 처리
+    if (message.toLowerCase() === 'win now') {
+        return {
+            response: "치트 코드를 사용했습니다. 승리합니다!",
+            completed: true,
+            victory: true,
+            current_turn: currentTurn + 1
+        };
+    } else if (message.toLowerCase() === 'lose now') {
+        return {
+            response: "치트 코드를 사용했습니다. 패배합니다!",
+            completed: true,
+            victory: false,
+            current_turn: currentTurn + 1
+        };
+    }
     
-    // 다양한 API 응답 구조 처리
-    if (responseData.success === true && responseData.data) {
-        console.log('성공 응답 구조 발견: success + data');
-        const data = responseData.data;
-        
-        // 메시지 필드 검색
-        if (data.message) {
-            message = data.message;
-        } else if (data.response) {
-            message = data.response;
-        }
-        
-        // 게임 상태 필드 검색
-        if (data.completed !== undefined) {
-            gameOver = data.completed;
-        } else if (data.game_over !== undefined) {
-            gameOver = data.game_over;
-        }
-        
-        // 승리 상태 필드 검색
-        if (data.victory !== undefined) {
-            victory = data.victory;
-        } else if (data.win !== undefined) {
-            victory = data.win;
-        }
-        
-        // 턴 정보 검색
-        if (data.current_turn !== undefined) {
-            nextTurn = data.current_turn;
-        } else if (data.turn !== undefined) {
-            nextTurn = data.turn;
-        }
-    } else if (responseData.message) {
-        console.log('직접 메시지 필드 구조 발견');
-        message = responseData.message;
-    } else if (responseData.response) {
-        console.log('response 필드 구조 발견');
-        message = responseData.response;
+    // 카테고리별 응답 생성
+    const category = currentScenario ? currentScenario.category : 'default';
+    let response = "";
+    
+    // 간단한 응답 패턴
+    if (message.toLowerCase().includes('안녕') || message.toLowerCase().includes('hi') || message.toLowerCase().includes('hello')) {
+        response = `안녕하세요! 저는 ${characterName}입니다. 어떻게 도와드릴까요?`;
+    } else if (message.toLowerCase().includes('이름') || message.toLowerCase().includes('who are you')) {
+        response = `제 이름은 ${characterName}입니다. 만나서 반가워요!`;
+    } else if (message.toLowerCase().includes('도움') || message.toLowerCase().includes('help')) {
+        response = "어떻게 도와드릴까요? 구체적인 질문을 해주시면 더 잘 답변할 수 있습니다.";
     } else {
-        console.warn('표준 응답 구조를 찾을 수 없음, 전체 응답 검사 시도');
-        
-        // 객체를 순회하며 가능한 메시지 필드 찾기
-        for (const key in responseData) {
-            if (typeof responseData[key] === 'string') {
-                console.log(`잠재적 메시지 필드 발견: ${key}`);
-                message = responseData[key];
-                break;
-            } else if (typeof responseData[key] === 'object' && responseData[key] !== null) {
-                // 중첩된 객체에서 메시지 필드 찾기
-                const nestedObj = responseData[key];
-                if (nestedObj.message) {
-                    message = nestedObj.message;
-                    break;
-                } else if (nestedObj.response) {
-                    message = nestedObj.response;
-                    break;
-                } else if (nestedObj.content) {
-                    message = nestedObj.content;
-                    break;
+        // 카테고리별 기본 응답
+        switch (category) {
+            case '플러팅':
+                if (message.toLowerCase().includes('전화') || message.toLowerCase().includes('번호') || message.toLowerCase().includes('연락처')) {
+                    response = "음, 우리 더 알아가고 싶네요. 제 번호는 010-1234-5678이에요. 연락 주세요!";
+                } else {
+                    const flirtResponses = [
+                        "오늘 정말 재미있는 대화네요. 더 이야기하고 싶어요.",
+                        "당신의 이야기 방식이 정말 매력적이에요.",
+                        "다른 사람과는 다르게 대화하는 느낌이 드네요. 좋아요.",
+                        "이렇게 대화를 나누니 시간 가는 줄 모르겠어요."
+                    ];
+                    response = flirtResponses[Math.floor(Math.random() * flirtResponses.length)];
                 }
-            }
+                break;
+                
+            case '면접':
+                if (message.toLowerCase().includes('경력') || message.toLowerCase().includes('경험')) {
+                    response = "저는 이 분야에서 5년 이상의 경력을 가지고 있으며, 다양한 프로젝트를 성공적으로 이끌었습니다.";
+                } else if (message.toLowerCase().includes('강점') || message.toLowerCase().includes('장점')) {
+                    response = "저의 가장 큰 강점은 문제 해결 능력과 팀워크입니다. 어려운 상황에서도 창의적인 해결책을 찾아냅니다.";
+                } else if (message.toLowerCase().includes('연봉') || message.toLowerCase().includes('급여')) {
+                    response = "네, 제시해주신 연봉 범위에 동의합니다. 회사에 기여할 수 있는 가치를 생각하면 합리적인 제안이라고 생각합니다.";
+                    return {
+                        response,
+                        completed: true,
+                        victory: true,
+                        current_turn: currentTurn + 1
+                    };
+                } else {
+                    const interviewResponses = [
+                        "네, 그 부분에 대해 자세히 설명드리겠습니다.",
+                        "좋은 질문입니다. 제 생각을 말씀드리자면...",
+                        "그 부분은 제가 특히 자신 있는 영역입니다.",
+                        "그 질문에 대한 답변을 준비해왔습니다."
+                    ];
+                    response = interviewResponses[Math.floor(Math.random() * interviewResponses.length)];
+                }
+                break;
+                
+            case '물건판매':
+                if (message.toLowerCase().includes('가격') || message.toLowerCase().includes('얼마')) {
+                    response = "이 제품의 가격은 시장가보다 매우 합리적입니다. 품질과 상태를 고려하면 좋은 거래라고 생각합니다.";
+                } else if (message.toLowerCase().includes('구매') || message.toLowerCase().includes('살게') || message.toLowerCase().includes('계약')) {
+                    response = "훌륭한 선택입니다! 거래가 성사되었습니다. 정말 좋은 제품을 얻으셨습니다.";
+                    return {
+                        response,
+                        completed: true,
+                        victory: true,
+                        current_turn: currentTurn + 1
+                    };
+                } else {
+                    const salesResponses = [
+                        "이 제품의 장점을 말씀드리자면...",
+                        "많은 고객들이 이 제품의 품질에 만족하고 있습니다.",
+                        "이런 기회는 흔치 않습니다. 정말 좋은 조건이에요.",
+                        "다른 곳과 비교해보셔도 좋습니다. 저희 제품이 최고입니다."
+                    ];
+                    response = salesResponses[Math.floor(Math.random() * salesResponses.length)];
+                }
+                break;
+                
+            default:
+                const defaultResponses = [
+                    "흥미로운 질문이네요. 더 자세히 말씀해주실 수 있을까요?",
+                    "네, 계속해서 이야기해주세요.",
+                    "알겠습니다. 다른 질문이 있으신가요?",
+                    "그렇군요. 더 알고 싶은 것이 있으신가요?"
+                ];
+                response = defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
         }
-        
-        if (!message) {
-            console.error('지원되지 않는 응답 구조:', responseData);
-            message = '서버 응답을 처리할 수 없습니다. 다시 시도해보세요.';
-        }
     }
     
-    // 메시지가 없으면 기본 메시지 제공
-    if (!message) {
-        console.error('응답에 메시지가 없습니다:', responseData);
-        message = '죄송합니다. 응답을 생성하는 데 문제가 발생했습니다. 다시 질문해주세요.';
-    }
+    // 최대 턴 확인
+    const isLastTurn = currentTurn + 1 >= maxTurns;
     
-    // 기본 응답에서 메시지 추출 (더 이상 API 응답이 사용자 메시지를 반복하지 않도록)
-    if (message.includes('당신의 질문') && message.includes('에 대한 응답입니다')) {
-        message = '죄송합니다. 그 질문에 대한 답을 잘 모르겠습니다. 다른 질문을 해주세요.';
-    }
-    
-    // 메시지 표시
-    addMessage(characterName, message, 'ai-message');
-    
-    // 게임 상태 업데이트
-    if (gameOver) {
-        console.log(`게임 종료: 승리=${victory}`);
-        gameEnded = true;
-        
-        // 승리/패배 메시지 표시
-        if (victory) {
-            addMessage('시스템', '축하합니다! 게임에서 승리했습니다!', 'system-message success-text');
-        } else {
-            addMessage('시스템', '게임이 종료되었습니다. 다음에 다시 도전해보세요!', 'system-message');
-        }
-        
-        // 게임 종료 컨트롤 표시
-        showGameOverControls();
-    }
-    
-    // 턴 업데이트
-    currentTurn = nextTurn;
-    updateTurnIndicator(currentTurn, maxTurns);
-    
-    console.log('===== AI 질문 요청 완료 =====');
-    return message;
+    return {
+        response,
+        completed: isLastTurn,
+        victory: false,
+        current_turn: currentTurn + 1
+    };
 }
 
 // 턴 표시기 업데이트
@@ -1485,47 +1382,62 @@ function handleBackToHome() {
 }
 
 // 메시지 추가 함수
-function addMessage(sender, text, className) {
-    const messageElement = document.createElement('div');
-    messageElement.className = `message ${className}`;
+function addMessage(sender, text, cssClass) {
+    const messagesContainer = document.getElementById('messages');
+    const messageDiv = document.createElement('div');
+    const messageId = 'msg-' + Date.now();
     
-    if (className !== 'system-message') {
-        const senderElement = document.createElement('div');
-        senderElement.className = 'message-sender';
-        senderElement.textContent = sender;
-        messageElement.appendChild(senderElement);
-    }
+    messageDiv.className = 'message ' + cssClass;
+    messageDiv.id = messageId;
     
-    const textElement = document.createElement('div');
-    textElement.className = 'message-text';
+    const senderSpan = document.createElement('span');
+    senderSpan.className = 'sender';
+    senderSpan.textContent = sender;
     
-    // 링크 자동 감지 및 클릭 가능하게 변환 (보안상 고려 필요)
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const processedText = text.replace(urlRegex, '<a href="$1" target="_blank">$1</a>');
+    const textSpan = document.createElement('span');
+    textSpan.className = 'text';
+    textSpan.textContent = text;
     
-    textElement.innerHTML = processedText;
-    messageElement.appendChild(textElement);
+    messageDiv.appendChild(senderSpan);
+    messageDiv.appendChild(textSpan);
+    messagesContainer.appendChild(messageDiv);
     
-    messageContainer.appendChild(messageElement);
+    // 메시지 영역을 자동으로 아래로 스크롤
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
     
-    // 스크롤을 항상 최신 메시지로 이동
-    scrollToBottom();
-    
-    return messageElement;
+    return messageId;
 }
 
-// 스크롤을 채팅창 맨 아래로 이동하는 함수
-function scrollToBottom() {
+// 메시지 ID로 해당 메시지 제거
+function removeMessage(messageId) {
+    if (!messageId) return;
+    
+    const messageElement = document.getElementById(messageId);
+    if (messageElement && messageElement.parentNode) {
+        messageElement.parentNode.removeChild(messageElement);
+    }
+}
+
+// 현재 턴 가져오기
+function getCurrentTurn() {
+    return currentTurn;
+}
+
+// 턴 표시기 업데이트
+function updateTurnIndicator(current, max) {
     try {
-        // 메시지 컨테이너 직접 참조 (ID로 안전하게 접근)
-        const messageArea = document.getElementById('message-container');
-        if (messageArea) {
-            messageArea.scrollTop = messageArea.scrollHeight;
-            console.log('스크롤을 맨 아래로 이동했습니다');
+        // 턴 인디케이터 직접 업데이트
+        turnIndicator.textContent = `턴: ${current}/${max}`;
+        
+        // 경고 색상 표시 (최대 턴의 70% 이상일 때)
+        if (current >= max * 0.7) {
+            turnIndicator.classList.add('warning-text');
         } else {
-            console.error('message-container 요소를 찾을 수 없습니다');
+            turnIndicator.classList.remove('warning-text');
         }
+        
+        console.log(`턴 업데이트: ${current}/${max}`);
     } catch (error) {
-        console.error('스크롤 처리 중 오류가 발생했습니다:', error);
+        console.error('턴 표시기 업데이트 중 오류:', error);
     }
 } 
