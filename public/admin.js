@@ -7,6 +7,9 @@ let currentPage = 1;
 const itemsPerPage = 10;
 let promptsData = {}; // 프롬프트 데이터 추가
 
+// API 서버 URL 설정
+const API_SERVER_URL = 'https://flask-vercel-ebon.vercel.app';
+
 // 페이지 로드시 초기화
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
@@ -153,22 +156,8 @@ async function handleLogin(e) {
     }
     
     try {
-        // 오프라인 모드 로그인 처리 (서버가 없거나 응답하지 않는 경우)
-        if (username === 'admin' && password === 'admin123') {
-            console.log('기본 관리자 계정으로 로그인 성공!');
-            isAuthenticated = true;
-            document.getElementById('login-message').textContent = '오프라인 모드에서 로그인되었습니다.';
-            
-            // 메인 패널로 전환
-            setTimeout(() => {
-                showMainPanel();
-                loadDummyData(); // 더미 데이터 로드
-            }, 1000);
-            return;
-        }
-        
         console.log('로그인 API 요청 시작...');
-        const response = await fetch('/api/admin/login', {
+        const response = await fetch(`${API_SERVER_URL}/api/admin/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: username, password })
@@ -189,25 +178,27 @@ async function handleLogin(e) {
         } else {
             console.error('로그인 실패:', data.error || '알 수 없는 오류');
             document.getElementById('login-message').textContent = data.error || '로그인에 실패하였습니다.';
-            
-            // 서버가 없는 경우 오프라인 모드로 로그인 시도 제안
-            document.getElementById('login-message').innerHTML = 
-                '서버 연결이 불가능합니다.<br>오프라인 모드로 접속하려면 아이디 "admin", 비밀번호 "admin123"를 사용하세요.';
         }
     } catch (error) {
         console.error('로그인 오류:', error);
-        document.getElementById('login-message').innerHTML = 
-            '서버 연결 오류가 발생했습니다.<br>오프라인 모드로 접속하려면 아이디 "admin", 비밀번호 "admin123"를 사용하세요.';
+        document.getElementById('login-message').textContent = '서버 연결 오류가 발생했습니다. 나중에 다시 시도해 주세요.';
     }
 }
 
 // 로그아웃 처리
-function handleLogout() {
+async function handleLogout() {
+    try {
+        // 로그아웃 API 호출
+        await fetch(`${API_SERVER_URL}/api/admin/logout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (error) {
+        console.error('로그아웃 오류:', error);
+    }
+    
     isAuthenticated = false;
     showLoginPanel();
-    // 세션 정리
-    fetch('/api/admin/logout', { method: 'POST' })
-        .catch(error => console.error('로그아웃 오류:', error));
 }
 
 // 로그인 패널 표시
@@ -261,7 +252,7 @@ function showSection(sectionId) {
 // 아이템 데이터 로드
 async function loadItems() {
     try {
-        const response = await fetch('/api/admin/items');
+        const response = await fetch(`${API_SERVER_URL}/api/admin/items`);
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
@@ -281,7 +272,7 @@ async function loadItems() {
 // 게임 데이터 로드
 async function loadGames() {
     try {
-        const response = await fetch('/api/admin/games');
+        const response = await fetch(`${API_SERVER_URL}/api/admin/games`);
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
@@ -301,10 +292,12 @@ async function loadGames() {
 // 통계 데이터 로드
 async function loadStats() {
     try {
-        const response = await fetch('/api/debug');
+        const response = await fetch(`${API_SERVER_URL}/api/admin/stats`);
         if (response.ok) {
-            const stats = await response.json();
-            renderStats(stats);
+            const data = await response.json();
+            if (data.success) {
+                renderStats(data.data);
+            }
         } else {
             console.error('통계 로드 실패');
         }
@@ -316,7 +309,7 @@ async function loadStats() {
 // 프롬프트 데이터 로드
 async function loadPrompts() {
     try {
-        const response = await fetch('/api/admin/prompts');
+        const response = await fetch(`${API_SERVER_URL}/api/admin/prompts`);
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
@@ -494,7 +487,7 @@ document.getElementById('save-prompts-btn').addEventListener('click', () => {
         }
     });
     
-    fetch(`${SERVER_URL}/api/admin/prompts`, {
+    fetch(`${API_SERVER_URL}/api/admin/prompts`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json'
@@ -672,22 +665,25 @@ function formatStatName(name) {
 
 // 게임 종료 처리
 async function handleEndGame(gameId) {
-    if (!confirm(`정말 게임 ID ${gameId}를 종료하시겠습니까?`)) {
-        return;
-    }
+    if (!gameId) return;
     
     try {
-        const response = await fetch(`/api/admin/games/${gameId}/end`, {
+        const response = await fetch(`${API_SERVER_URL}/api/end`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game_id: gameId })
         });
         
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-            loadGames(); // 목록 새로고침
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                alert('게임이 성공적으로 종료되었습니다.');
+                loadGames(); // 게임 목록 새로고침
+            } else {
+                alert('게임 종료 실패: ' + (data.error || '알 수 없는 오류'));
+            }
         } else {
-            alert('게임 종료에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
+            alert('게임 종료 요청 실패: ' + response.status);
         }
     } catch (error) {
         console.error('게임 종료 오류:', error);
@@ -713,7 +709,7 @@ async function showItemModal(itemId = null) {
     if (itemId) {
         try {
             // 아이템 데이터 로드
-            const response = await fetch(`/api/admin/items/${itemId}`);
+            const response = await fetch(`${API_SERVER_URL}/api/admin/items/${itemId}`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
@@ -769,60 +765,63 @@ function addHintInput(hintValue = '') {
 
 // 아이템 저장 처리
 async function saveItem() {
-    // 필드 값 가져오기
-    const itemId = document.getElementById('item-id').value;
-    const answer = document.getElementById('item-answer').value;
-    const category = document.getElementById('item-category').value;
-    
-    // 힌트 목록 수집
-    const hints = [];
-    document.querySelectorAll('.hint-input').forEach(input => {
-        if (input.value.trim()) {
-            hints.push(input.value.trim());
-        }
-    });
-    
-    // 유효성 검사
-    if (!answer) {
-        alert('정답을 입력해주세요.');
-        return;
-    }
-    
-    if (!category) {
-        alert('카테고리를 입력해주세요.');
-        return;
-    }
-    
-    if (hints.length < 1) {
-        alert('적어도 하나의 힌트를 입력해주세요.');
-        return;
-    }
-    
-    // 아이템 데이터 준비
-    const itemData = {
-        answer,
-        category,
-        hints
-    };
-    
     try {
-        let response;
+        const itemForm = document.getElementById('item-form');
+        const itemId = itemForm.getAttribute('data-item-id');
+        
+        // 폼 데이터 수집
+        const answer = document.getElementById('item-answer').value;
+        const category = document.getElementById('item-category').value;
+        
+        // 힌트 목록 수집
+        const hints = [];
+        document.querySelectorAll('.hint-input').forEach(input => {
+            if (input.value.trim()) {
+                hints.push(input.value.trim());
+            }
+        });
+        
+        // 유효성 검사
+        if (!answer) {
+            alert('정답을 입력해주세요.');
+            return;
+        }
+        
+        if (!category) {
+            alert('카테고리를 입력해주세요.');
+            return;
+        }
+        
+        if (hints.length < 1) {
+            alert('적어도 하나의 힌트를 입력해주세요.');
+            return;
+        }
+        
+        // 아이템 데이터 준비
+        const itemData = {
+            answer,
+            category,
+            hints
+        };
+        
+        let apiMethod, apiUrl;
         
         if (itemId) {
             // 기존 아이템 업데이트
-            response = await fetch(`/api/admin/items/${itemId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(itemData)
-            });
+            apiMethod = 'PUT';
+            apiUrl = `${API_SERVER_URL}/api/admin/items/${itemId}`;
         } else {
             // 새 아이템 추가
-            response = await fetch('/api/admin/items', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(itemData)
-            });
+            apiMethod = 'POST';
+            apiUrl = `${API_SERVER_URL}/api/admin/items`;
         }
+        
+        // API 호출
+        const response = await fetch(apiUrl, {
+            method: apiMethod,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(itemData)
+        });
         
         const data = await response.json();
         
@@ -837,8 +836,8 @@ async function saveItem() {
             alert('항목 저장에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
         }
     } catch (error) {
-        console.error('항목 저장 오류:', error);
-        alert('항목 저장 중 오류가 발생했습니다.');
+        console.error('아이템 저장 오류:', error);
+        alert('아이템 저장 중 오류가 발생했습니다.');
     }
 }
 
@@ -853,28 +852,33 @@ function showDeleteConfirmation(itemId) {
 
 // 아이템 삭제 처리
 async function deleteItem() {
-    const itemId = document.getElementById('delete-item-id').value;
-    
     try {
-        const response = await fetch(`/api/admin/items/${itemId}`, {
+        const itemId = document.getElementById('delete-confirm-dialog').getAttribute('data-item-id');
+        
+        if (!itemId) {
+            console.error('삭제할 아이템 ID가 없습니다.');
+            return;
+        }
+        
+        const response = await fetch(`${API_SERVER_URL}/api/admin/items/${itemId}`, {
             method: 'DELETE'
         });
         
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-            // 모달 닫기
-            const deleteModal = bootstrap.Modal.getInstance(document.getElementById('delete-modal'));
-            deleteModal.hide();
-            
-            // 목록 새로고침
-            loadItems();
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                hideModals();
+                loadItems();
+                alert('아이템이 성공적으로 삭제되었습니다.');
+            } else {
+                alert('아이템 삭제 실패: ' + (data.error || '알 수 없는 오류'));
+            }
         } else {
-            alert('항목 삭제에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
+            alert('아이템 삭제 요청 실패: ' + response.status);
         }
     } catch (error) {
-        console.error('항목 삭제 오류:', error);
-        alert('항목 삭제 중 오류가 발생했습니다.');
+        console.error('아이템 삭제 오류:', error);
+        alert('아이템 삭제 중 오류가 발생했습니다.');
     }
 }
 
@@ -937,7 +941,7 @@ async function showItemPromptModal(itemId) {
 
     try {
         // 아이템별 프롬프트 데이터 로드
-        const response = await fetch(`/api/admin/items/${itemId}/prompt`);
+        const response = await fetch(`${API_SERVER_URL}/api/admin/items/${itemId}/prompt`);
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
@@ -1001,9 +1005,11 @@ async function showItemPromptModal(itemId) {
 
 // 아이템별 프롬프트 저장
 async function saveItemPrompt() {
-    const itemId = document.getElementById('prompt-item-id').value;
+    const itemPromptForm = document.getElementById('item-prompt-form');
+    const itemId = itemPromptForm.getAttribute('data-item-id');
+    
     if (!itemId) {
-        alert('유효한 아이템 ID가 없습니다.');
+        console.error('프롬프트를 저장할 아이템 ID가 없습니다.');
         return;
     }
 
@@ -1028,7 +1034,7 @@ async function saveItemPrompt() {
 
     try {
         // 먼저 아이템 정보 업데이트
-        const itemResponse = await fetch(`/api/admin/items/${itemId}`, {
+        const itemResponse = await fetch(`${API_SERVER_URL}/api/admin/items/${itemId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -1051,7 +1057,7 @@ async function saveItemPrompt() {
         }
 
         // 그 다음 프롬프트 정보 업데이트
-        const promptResponse = await fetch(`/api/admin/items/${itemId}/prompt`, {
+        const promptResponse = await fetch(`${API_SERVER_URL}/api/admin/items/${itemId}/prompt`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
