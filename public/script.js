@@ -537,18 +537,70 @@ function useDefaultGameItems() {
     console.log('더미 게임 데이터 사용 중...');
     gameItems = [
         {
-            id: "1", 
-            title: "신비한 인물 찾기",
-            category: "인물",
-            character_name: "알 수 없는 인물",
-            max_turns: 10
+            "id": 1,
+            "title": "플러팅 고수! 전화번호 따기",
+            "category": "플러팅",
+            "max_turns": 5,
+            "win_condition": "상대방의 전화번호를 얻어낸다",
+            "lose_condition": "턴 제한을 초과하거나 상대방이 대화를 거부한다",
+            "character_setting": "당신은 카페에서 우연히 마주친 매력적인 사람과 대화를 시작했습니다. 그들은 친절하지만 쉽게 개인정보를 알려주지 않는 성격입니다.",
+            "difficulty": "보통",
+            "character_name": "윤지혜"
         },
         {
-            id: "2",
-            title: "플러팅 마스터",
-            category: "대화",
-            character_name: "이유나",
-            max_turns: 5
+            "id": 2,
+            "title": "파티에서 번호 교환하기",
+            "category": "플러팅",
+            "max_turns": 4,
+            "win_condition": "상대방과 번호를 교환하고 다음 만남 약속을 잡는다",
+            "lose_condition": "턴 제한을 초과하거나 상대방이 관심을 잃는다",
+            "character_setting": "당신은 친구의 파티에서 공통 관심사를 가진 사람을 만났습니다. 그들은 사교적이지만 많은 사람들에게 관심을 받고 있습니다.",
+            "difficulty": "쉬움",
+            "character_name": "김민준"
+        },
+        {
+            "id": 3,
+            "title": "꿈의 직장 면접 성공하기",
+            "category": "면접",
+            "max_turns": 10,
+            "win_condition": "면접관을 설득해 일자리 제안을 받는다",
+            "lose_condition": "자신의 경력이나 능력에 대해 일관성 없는 대답을 한다",
+            "character_setting": "당신은 꿈의 회사에서 최종 면접 단계에 진출했습니다. 면접관은 기술적 지식과 문화적 적합성을 모두 평가하고 있습니다.",
+            "difficulty": "어려움",
+            "character_name": "박상현"
+        },
+        {
+            "id": 4,
+            "title": "연봉 협상 마스터",
+            "category": "면접",
+            "max_turns": 5,
+            "win_condition": "초기 제안보다 20% 이상 높은 연봉을 협상한다",
+            "lose_condition": "지나치게 공격적으로 요구하여 제안이 철회된다",
+            "character_setting": "당신은 직무 면접을 통과했고 이제 연봉 협상 단계입니다. 회사는 당신을 원하지만 예산 제약이 있습니다.",
+            "difficulty": "어려움",
+            "character_name": "이지연"
+        },
+        {
+            "id": 5,
+            "title": "중고차 판매의 달인",
+            "category": "물건판매",
+            "max_turns": 6,
+            "win_condition": "차량을 희망가보다 10% 이상 높은 가격에 판매한다",
+            "lose_condition": "구매자가 거래를 거부하고 떠난다",
+            "character_setting": "당신은 중고차 딜러입니다. 약간의 문제가 있지만 전반적으로 상태가 좋은 중고차를 판매하려고 합니다. 강태식씨는 까다롭고 차에 대해 많은 질문을 하는 잠재 구매자입니다.",
+            "difficulty": "보통",
+            "character_name": "강태식"
+        },
+        {
+            "id": 6,
+            "title": "한정판 제품 프리미엄 판매",
+            "category": "물건판매",
+            "max_turns": 4,
+            "win_condition": "정가의 두 배 이상으로 제품을 판매한다",
+            "lose_condition": "구매자가 사기를 의심하고 신고한다",
+            "character_setting": "당신은 구하기 어려운 한정판 제품을 가지고 있으며, 온라인 마켓플레이스에서 판매하려고 합니다. 구매자는 제품에 관심이 있지만 가격을 흥정하려고 합니다.",
+            "difficulty": "보통",
+            "character_name": "조현우"
         }
     ];
     populateGameSelect(gameItems);
@@ -636,8 +688,8 @@ async function handleStartGame(mode) {
             
             // 문자열이라면 숫자로 변환 시도
             if (typeof selectedItemId === 'string' && !isNaN(selectedItemId)) {
-            selectedItemId = parseInt(selectedItemId, 10);
-            console.log('변환된 게임 ID(숫자):', selectedItemId);
+                selectedItemId = parseInt(selectedItemId, 10);
+                console.log('변환된 게임 ID(숫자):', selectedItemId);
             }
         }
         
@@ -657,21 +709,20 @@ async function handleStartGame(mode) {
             console.log(`시도 ${apiAttempts + 1}/${maxAttempts} - 게임 시작 요청 URL:`, startUrl);
             
             try {
-        console.log('서버에 게임 시작 요청 전송');
+                console.log('서버에 게임 시작 요청 전송');
                 const response = await fetch(startUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(requestBody)
-        });
-        
+                });
+                
                 console.log('게임 시작 응답 받음:', response);
                 console.log('응답 상태:', response.status, response.statusText);
-                console.log('응답 헤더:', [...response.headers.entries()]);
                 
                 // 응답 상태 확인
-        if (!response.ok) {
+                if (!response.ok) {
                     console.error(`서버 응답 오류: ${response.status}`);
                     
                     if (response.status === 404) {
@@ -759,61 +810,71 @@ async function handleStartGame(mode) {
         }
         
         // 서버 연결 성공 시, 서버 상태 메시지 업데이트
-            serverStatus.textContent = '✅ 서버 연결 성공';
-            serverStatus.classList.add('success-text');
-            serverStatus.classList.remove('error-text');
+        serverStatus.textContent = '✅ 서버 연결 성공';
+        serverStatus.classList.add('success-text');
+        serverStatus.classList.remove('error-text');
         
         // 응답 데이터 처리
         console.log('게임 시작 성공, 데이터 처리 시작');
         
-        const result = startData.data || {};
+        // 데이터 경로 확인 (success.data 형식인지 확인)
+        const result = startData.data || startData;
+        console.log('게임 시작 응답 데이터:', result);
+        
+        // 중요: 게임 ID 설정 확인
+        if (!result.game_id) {
+            console.error('서버 응답에 game_id가 없습니다:', result);
+            throw new Error('서버 응답에 게임 ID가 누락되었습니다.');
+        }
         
         // 안전하게 속성 접근을 위해 기본값 설정
-        gameId = result.game_id || `game_${Date.now()}`;
-        title = result.title || result.scenario_title || '알 수 없는 시나리오';
+        gameId = result.game_id; // 중요: 전역 gameId 변수 설정
+        console.log('게임 ID 설정됨:', gameId);
+        
+        title = result.title || '알 수 없는 시나리오';
         currentTurn = result.current_turn || 1;
         maxTurns = result.max_turns || 10;
         winCondition = result.win_condition || '알 수 없는 승리 조건';
-        characterName = result.character_name || result.ai_name || "AI"; // 캐릭터 이름 저장
+        characterName = result.character_name || "AI"; // 캐릭터 이름 저장
         
         // 서버 응답 데이터 로그
         console.log('게임 데이터 적용:', {
             gameId, title, currentTurn, maxTurns, winCondition, characterName
         });
             
-            // UI 업데이트
+        // UI 업데이트
         console.log('UI 업데이트 시작');
-            gameIdElement.textContent = `게임 ID: ${gameId}`;
+        gameIdElement.textContent = `게임 ID: ${gameId}`;
         categoryElement.textContent = `카테고리: ${result.category || '일반'}`;
         titleElement.textContent = `시나리오: ${title}`;
         winConditionElement.textContent = `승리 조건: ${winCondition}`;
             
-            // 캐릭터 설정 업데이트 (이름 포함)
-            let characterInfo = result.character_setting || "";
-            if (characterName && characterName !== "AI") {
-                characterInfo = `<strong>${characterName}</strong>과의 대화입니다. ${characterInfo}`;
-            }
+        // 캐릭터 설정 업데이트 (이름 포함)
+        let characterInfo = result.character_setting || "";
+        if (characterName && characterName !== "AI") {
+            characterInfo = `<strong>${characterName}</strong>과의 대화입니다. ${characterInfo}`;
+        }
         characterInfoElement.innerHTML = characterInfo || "AI와 대화를 시작하세요.";
             
         // 턴 인디케이터 업데이트
-            updateTurnIndicator(currentTurn, maxTurns);
+        updateTurnIndicator(currentTurn, maxTurns);
             
-            // 시작 화면 숨김, 게임 화면 표시
-            startScreen.classList.add('hidden');
-            gameContainer.classList.remove('hidden');
+        // 시작 화면 숨김, 게임 화면 표시
+        startScreen.classList.add('hidden');
+        gameContainer.classList.remove('hidden');
             
-            // 시스템 메시지 추가
+        // 시스템 메시지 추가
         console.log('환영 메시지 표시');
-            addMessage('시스템', '게임이 시작되었습니다!', 'system-message');
+        addMessage('시스템', '게임이 시작되었습니다!', 'system-message');
         
         // 환영 메시지 (기본값 제공)
         const welcomeMessage = result.welcome_message || '안녕하세요! 대화를 시작해볼까요?';
         addMessage(characterName, welcomeMessage, 'ai-message');
             
-            // 게임 상태 초기화
-            gameEnded = false;
+        // 게임 상태 초기화
+        gameEnded = false;
             
-            console.log('게임이 성공적으로 시작됨');
+        console.log('게임이 성공적으로 시작됨');
         console.log('===== 게임 시작 처리 완료 =====');
         
     } catch (error) {
@@ -1003,16 +1064,20 @@ function handleOfflineResponse(message) {
 async function askQuestion(message) {
     try {
         console.log('===== AI 질문 요청 시작 =====');
+        console.log('게임 ID:', gameId);
+        console.log('질문 내용:', message);
         
         // 게임 ID가 없으면 (서버 연결 안 됨) 오프라인 모드로 처리
         if (!gameId) {
             console.warn('게임 ID가 없어 오프라인 모드로 응답합니다.');
+            gameId = 'offline-mode'; // 오프라인 모드 표시
             setTimeout(() => {
                 const offlineResponse = handleOfflineResponse({
                     message: message,
                     category: currentScenario ? currentScenario.category : 'default'
                 });
                 addMessage(characterName, offlineResponse, 'ai-message');
+                currentTurn++;
                 updateTurnIndicator(currentTurn, maxTurns);
             }, 1000);
             return;
@@ -1021,8 +1086,6 @@ async function askQuestion(message) {
         // 요청 URL 설정
         const askUrl = `${getCurrentApiUrl()}/api/ask`;
         console.log('게임 질문 요청 URL:', askUrl);
-        console.log('게임 ID:', gameId);
-        console.log('질문 내용:', message);
         
         // 요청 본문 구성
         const requestBody = {
@@ -1062,10 +1125,15 @@ async function askQuestion(message) {
                 if (alternativeResponse.ok) {
                     console.log('대안 API 경로 성공');
                     const text = await alternativeResponse.text();
-                    const jsonData = JSON.parse(text);
+                    console.log('대안 경로 응답 텍스트:', text);
                     
-                    // 응답 처리
-                    return processApiResponse(jsonData);
+                    try {
+                        const jsonData = JSON.parse(text);
+                        return processApiResponse(jsonData);
+                    } catch (parseError) {
+                        console.error('대안 응답 파싱 오류:', parseError);
+                        throw new Error(`응답 파싱 오류: ${parseError.message}`);
+                    }
                 } else {
                     console.error(`대안 API 경로도 실패: ${alternativeResponse.status}`);
                     throw new Error(`API 응답 오류: ${alternativeResponse.status} ${alternativeResponse.statusText}`);
@@ -1094,30 +1162,15 @@ async function askQuestion(message) {
             }
         }
     } catch (error) {
-        console.error('질문 처리 중 오류 발생:', error);
-        console.error('에러 세부 정보:', error.stack);
-        
-        // 오류 메시지 표시
-        addMessage('시스템', `응답을 생성하는 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`, 'system-message error-text');
-        
-        // 오프라인 모드로 폴백
-        const offlineResponse = handleOfflineResponse({
-            message: message,
-            category: currentScenario ? currentScenario.category : 'default'
-        });
-        addMessage(characterName, offlineResponse, 'ai-message');
-        
-        // 턴 증가 및 업데이트
-        currentTurn++;
-        updateTurnIndicator(currentTurn, maxTurns);
-        
-        return null;
+        console.error('askQuestion 에러:', error);
+        addMessage('시스템', `오류가 발생했습니다: ${error.message}. 다시 시도하세요.`, 'system-message error-text');
+        throw error;
     }
 }
 
 // API 응답 처리 함수
 function processApiResponse(responseData) {
-    console.log('응답 데이터 구조 확인:', responseData);
+    console.log('응답 데이터 처리 시작:', responseData);
     
     // 응답에서 메시지 추출
     let message = null;
@@ -1164,14 +1217,45 @@ function processApiResponse(responseData) {
         console.log('response 필드 구조 발견');
         message = responseData.response;
     } else {
-        console.error('지원되지 않는 응답 구조:', responseData);
-        throw new Error('지원되지 않는 API 응답 구조');
+        console.warn('표준 응답 구조를 찾을 수 없음, 전체 응답 검사 시도');
+        
+        // 객체를 순회하며 가능한 메시지 필드 찾기
+        for (const key in responseData) {
+            if (typeof responseData[key] === 'string') {
+                console.log(`잠재적 메시지 필드 발견: ${key}`);
+                message = responseData[key];
+                break;
+            } else if (typeof responseData[key] === 'object' && responseData[key] !== null) {
+                // 중첩된 객체에서 메시지 필드 찾기
+                const nestedObj = responseData[key];
+                if (nestedObj.message) {
+                    message = nestedObj.message;
+                    break;
+                } else if (nestedObj.response) {
+                    message = nestedObj.response;
+                    break;
+                } else if (nestedObj.content) {
+                    message = nestedObj.content;
+                    break;
+                }
+            }
+        }
+        
+        if (!message) {
+            console.error('지원되지 않는 응답 구조:', responseData);
+            message = '서버 응답을 처리할 수 없습니다. 다시 시도해보세요.';
+        }
     }
     
-    // 메시지가 없으면 오류
+    // 메시지가 없으면 기본 메시지 제공
     if (!message) {
         console.error('응답에 메시지가 없습니다:', responseData);
-        throw new Error('API 응답에 메시지가 없습니다');
+        message = '죄송합니다. 응답을 생성하는 데 문제가 발생했습니다. 다시 질문해주세요.';
+    }
+    
+    // 기본 응답에서 메시지 추출 (더 이상 API 응답이 사용자 메시지를 반복하지 않도록)
+    if (message.includes('당신의 질문') && message.includes('에 대한 응답입니다')) {
+        message = '죄송합니다. 그 질문에 대한 답을 잘 모르겠습니다. 다른 질문을 해주세요.';
     }
     
     // 메시지 표시
