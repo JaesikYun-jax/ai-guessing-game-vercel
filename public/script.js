@@ -7,6 +7,7 @@ let title = "";
 let winCondition = "";
 let characterName = "AI"; // 캐릭터 이름
 let gameItems = []; // 게임 항목 목록
+let sessionStorageAvailable = false; // 세션 스토리지 사용 가능 여부
 
 // DOM 요소
 const serverStatus = document.getElementById('server-status');
@@ -30,12 +31,54 @@ const characterInfoElement = document.getElementById('character-info');
 
 // 서버 주소 설정 (API 서버 URL)
 const SERVER_URL = 'https://flask-vercel-ebon.vercel.app';
+const USE_TEST_MODE = true; // 테스트 모드 활성화
+
+// 세션 스토리지 사용 가능 여부 확인
+try {
+    sessionStorage.setItem('test', 'test');
+    sessionStorage.removeItem('test');
+    sessionStorageAvailable = true;
+    console.log('세션 스토리지 사용 가능');
+} catch (e) {
+    sessionStorageAvailable = false;
+    console.warn('세션 스토리지 사용 불가:', e);
+}
 
 // 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
 document.addEventListener('DOMContentLoaded', async () => {
     // 콘솔에 디버그 메시지 출력
     console.log('페이지 로드됨, 이벤트 리스너 설정 시작');
     console.log('서버 URL:', SERVER_URL);
+    console.log('테스트 모드:', USE_TEST_MODE ? '활성화' : '비활성화');
+    
+    // 저장된 게임 세션 확인
+    if (sessionStorageAvailable) {
+        try {
+            const savedSession = sessionStorage.getItem('gameSession');
+            if (savedSession) {
+                const session = JSON.parse(savedSession);
+                console.log('저장된 게임 세션 발견:', session);
+                
+                // 세션이 최근 것인지 확인 (30분 이내)
+                const sessionTime = new Date(session.timestamp || 0);
+                const currentTime = new Date();
+                const timeDiff = (currentTime - sessionTime) / (1000 * 60); // 분 단위
+                
+                if (timeDiff < 30 && !session.completed) {
+                    // 유효한 최근 세션, 게임 복원
+                    console.log('유효한 게임 세션 복원');
+                    restoreGameSession(session);
+                } else {
+                    // 오래된 세션 또는 완료된 세션, 삭제
+                    console.log('만료된 세션 삭제 (경과 시간:', timeDiff, '분)');
+                    sessionStorage.removeItem('gameSession');
+                }
+            }
+        } catch (error) {
+            console.error('세션 복원 오류:', error);
+            sessionStorage.removeItem('gameSession');
+        }
+    }
     
     // 서버 상태 확인 시작
     await checkServerStatus();
@@ -71,6 +114,88 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkButtonsExist();
 });
 
+// 게임 세션 복원 함수
+function restoreGameSession(session) {
+    if (!session) return;
+    
+    // 게임 상태 복원
+    gameId = session.gameId;
+    title = session.title;
+    currentTurn = session.currentTurn || 1;
+    maxTurns = session.maxTurns || 5;
+    winCondition = session.winCondition || "";
+    characterName = session.characterName || "AI";
+    gameEnded = session.completed || false;
+    
+    // UI 업데이트
+    gameIdElement.textContent = `게임 ID: ${gameId}`;
+    categoryElement.textContent = `카테고리: ${session.category || ""}`;
+    titleElement.textContent = `시나리오: ${title}`;
+    winConditionElement.textContent = `승리 조건: ${winCondition}`;
+    updateTurnIndicator(currentTurn, maxTurns);
+    
+    if (session.characterInfo) {
+        characterInfoElement.textContent = session.characterInfo;
+    }
+    
+    // 메시지 복원
+    if (session.messages && Array.isArray(session.messages)) {
+        session.messages.forEach(msg => {
+            addMessage(msg.sender, msg.text, msg.className);
+        });
+    }
+    
+    // 게임 화면 표시 및 시작 화면 숨기기
+    startScreen.classList.add('hidden');
+    gameContainer.classList.remove('hidden');
+    
+    // 게임 종료된 경우 컨트롤 업데이트
+    if (gameEnded) {
+        showGameOverControls();
+    }
+    
+    // 메시지 영역 스크롤
+    scrollToBottom();
+}
+
+// 게임 세션 저장 함수
+function saveGameSession() {
+    if (!sessionStorageAvailable || !gameId) return;
+    
+    // 메시지 수집
+    const messages = [];
+    const messageElements = messageContainer.querySelectorAll('.message');
+    messageElements.forEach(el => {
+        const sender = el.classList.contains('user-message') ? 'user' : 'ai';
+        const text = el.textContent;
+        const className = sender === 'user' ? 'user-message' : 'ai-message';
+        messages.push({ sender, text, className });
+    });
+    
+    // 게임 세션 객체 생성
+    const session = {
+        gameId,
+        title,
+        category: categoryElement.textContent.replace('카테고리: ', ''),
+        currentTurn,
+        maxTurns,
+        winCondition,
+        characterName,
+        characterInfo: characterInfoElement.textContent,
+        completed: gameEnded,
+        messages,
+        timestamp: new Date().toISOString()
+    };
+    
+    // 세션 저장
+    try {
+        sessionStorage.setItem('gameSession', JSON.stringify(session));
+        console.log('게임 세션 저장됨:', session);
+    } catch (error) {
+        console.error('게임 세션 저장 오류:', error);
+    }
+}
+
 // 버튼이 DOM에 제대로 있는지 확인하는 함수
 function checkButtonsExist() {
     console.log('버튼 존재 확인:');
@@ -103,13 +228,20 @@ async function checkServerStatus() {
         serverStatus.classList.remove('success-text', 'error-text');
         
         console.log('서버 상태 API 요청:', `${SERVER_URL}/api/health`);
-        const response = await fetch(`${SERVER_URL}/api/health`);
+        const response = await fetch(`${SERVER_URL}/api/health`, { 
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            // 캐시 방지
+            cache: 'no-cache'
+        });
         console.log('서버 상태 응답:', response.status, response.statusText);
         
         if (response.ok) {
             // 서버 응답 성공
             console.log('서버 연결 성공');
-            serverStatus.textContent = '✅ 서버 연결 성공';
+            const data = await response.json();
+            
+            serverStatus.textContent = `✅ 서버 연결 성공 (${data.status})`;
             serverStatus.classList.add('success-text');
             serverStatus.classList.remove('error-text');
             startScreen.classList.remove('hidden');
@@ -150,7 +282,11 @@ async function fetchGameItems() {
     try {
         console.log('게임 항목 목록 요청 시작:', `${SERVER_URL}/api/games`);
         
-        const response = await fetch(`${SERVER_URL}/api/games`);
+        const response = await fetch(`${SERVER_URL}/api/games`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+            cache: 'no-cache'
+        });
         console.log('게임 항목 응답 상태:', response.status, response.statusText);
         
         if (!response.ok) {
@@ -206,381 +342,373 @@ function populateGameSelect(items) {
         categorizedItems[category].push(item);
     });
     
-    // 카테고리 정렬
-    const sortedCategories = Object.keys(categorizedItems).sort();
-    
-    // 옵션 그룹 추가
-    sortedCategories.forEach(category => {
-        // 옵션 그룹 생성
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = category;
+    // 카테고리별 optgroup 생성
+    for (const category in categorizedItems) {
+        const group = document.createElement('optgroup');
+        group.label = category;
         
-        // 해당 카테고리의 항목 추가
+        // 해당 카테고리의 게임들 추가
         categorizedItems[category].forEach(item => {
             const option = document.createElement('option');
             option.value = item.id;
-            option.textContent = item.title;
-            optgroup.appendChild(option);
+            option.textContent = `${item.title} (${item.difficulty || '보통'}, ${item.max_turns}턴)`;
+            option.dataset.turns = item.max_turns;
+            group.appendChild(option);
         });
         
-        gameSelect.appendChild(optgroup);
-    });
+        gameSelect.appendChild(group);
+    }
     
-    console.log('드롭다운 옵션 추가 완료, 현재 옵션 수:', gameSelect.options.length);
+    console.log('게임 목록 드롭다운 채우기 완료, 총 옵션 수:', gameSelect.options.length);
 }
 
-// 게임 시작 처리 함수
+// 게임 시작 핸들러
 async function handleStartGame(mode) {
-    console.log(`게임 시작 모드: ${mode}`);
-    
     try {
-        // 버튼 비활성화 (중복 클릭 방지)
-        startSelectedBtn.disabled = true;
-        startRandomBtn.disabled = true;
+        console.log(`게임 시작 모드: ${mode}`);
         
-        let selectedItemId = null;
-        
-        // 게임 선택 모드에 따라 처리
-        if (mode === 'selected') {
-            // 선택된 게임 ID 가져오기
-            selectedItemId = gameSelect.value;
-            
-            // 게임이 선택되지 않은 경우
-            if (!selectedItemId) {
-                alert('게임을 선택해주세요.');
-                startSelectedBtn.disabled = false;
-                startRandomBtn.disabled = false;
-                return;
-            }
-            
-            console.log('선택된 게임 ID:', selectedItemId);
-        } else if (mode === 'random') {
-            // 랜덤 게임 선택 (서버에서 처리됨)
-            console.log('랜덤 게임 선택 (서버에서 처리)');
-        } else {
-            console.error('알 수 없는 게임 시작 모드:', mode);
-            alert('잘못된 게임 시작 모드입니다.');
-            startSelectedBtn.disabled = false;
-            startRandomBtn.disabled = false;
+        // 서버 연결 상태 확인
+        if (serverStatus.classList.contains('error-text')) {
+            alert('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
             return;
         }
         
-        // 게임 시작 API 호출
-        console.log('게임 시작 요청 전송:', `${SERVER_URL}/api/start`);
+        // 랜덤 모드 또는 선택된 게임 ID 가져오기
+        let selectedGameId = null;
+        if (mode === 'selected') {
+            selectedGameId = gameSelect.value;
+            if (!selectedGameId) {
+                alert('게임을 선택해주세요.');
+                return;
+            }
+        }
+        
+        // 게임 시작 버튼 비활성화 (중복 클릭 방지)
+        startSelectedBtn.disabled = true;
+        startRandomBtn.disabled = true;
+        
+        console.log('게임 시작 API 요청:', `${SERVER_URL}/api/start`);
+        console.log('선택된 게임 ID:', selectedGameId);
+        
+        // API 요청 데이터 준비
+        const requestData = {
+            item_id: selectedGameId,
+            test: USE_TEST_MODE // 테스트 모드 활성화 여부
+        };
+        
+        // API 요청
         const response = await fetch(`${SERVER_URL}/api/start`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                item_id: selectedItemId
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
         });
         
         console.log('게임 시작 응답 상태:', response.status, response.statusText);
         
         if (!response.ok) {
-            throw new Error(`서버 오류: ${response.status}`);
+            throw new Error(`서버 응답 오류: ${response.status}`);
         }
         
         const data = await response.json();
         console.log('게임 시작 응답 데이터:', data);
         
-        if (!data.success && data.error) {
-            throw new Error(data.error);
-        }
-        
-        // 게임 데이터 추출
-        const gameData = data.data || data;
-        
-        if (!gameData.game_id) {
-            throw new Error('게임 ID가 없습니다.');
-        }
-        
-        // 게임 정보 저장
-        gameId = gameData.game_id;
-        title = gameData.title || '알 수 없는 게임';
-        currentTurn = 1;
-        maxTurns = gameData.max_turns || 5;
-        winCondition = gameData.win_condition || '알 수 없음';
-        characterName = gameData.character_name || 'AI';
-        gameEnded = false;
-        
-        // UI 업데이트
-        const currentTurnEl = document.getElementById('current-turn');
-        const maxTurnsEl = document.getElementById('max-turns');
-        
-        gameIdElement.textContent = `게임 ID: ${gameId}`;
-        categoryElement.textContent = `카테고리: ${gameData.category || '일반'}`;
-        titleElement.textContent = `시나리오: ${title}`;
-        winConditionElement.textContent = `승리 조건: ${winCondition}`;
-        
-        if (currentTurnEl) currentTurnEl.textContent = currentTurn;
-        if (maxTurnsEl) maxTurnsEl.textContent = maxTurns;
-        
-        // 캐릭터 정보 설정
-        if (characterInfoElement) {
-            if (gameData.character_setting) {
-                characterInfoElement.innerHTML = `<strong>${characterName}</strong>: ${gameData.character_setting}`;
-            } else {
-                characterInfoElement.innerHTML = `<strong>${characterName}</strong>이(가) 당신의 대화 상대입니다.`;
+        if (data.success && data.data) {
+            // 게임 정보 저장
+            gameId = data.data.game_id;
+            title = data.data.title;
+            maxTurns = data.data.max_turns;
+            currentTurn = data.data.current_turn;
+            winCondition = data.data.win_condition;
+            characterName = data.data.character_name;
+            gameEnded = false;
+            
+            // UI 업데이트
+            gameIdElement.textContent = `게임 ID: ${gameId}`;
+            categoryElement.textContent = `카테고리: ${data.data.category}`;
+            titleElement.textContent = `시나리오: ${title}`;
+            winConditionElement.textContent = `승리 조건: ${winCondition}`;
+            updateTurnIndicator(currentTurn, maxTurns);
+            
+            // 캐릭터 정보 표시
+            if (data.data.character_setting) {
+                characterInfoElement.textContent = `${data.data.character_name}: ${data.data.character_setting}`;
             }
+            
+            // 메시지 영역 초기화
+            messageContainer.innerHTML = '';
+            
+            // 환영 메시지 추가
+            if (data.data.welcome_message) {
+                addMessage('system', data.data.welcome_message, 'system-message');
+            }
+            
+            // 게임 화면 표시 및 시작 화면 숨기기
+            startScreen.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            
+            // 입력란에 포커스
+            userInput.focus();
+            
+            // 게임 세션 저장
+            saveGameSession();
+        } else {
+            throw new Error(data.error || '게임을 시작하는데 실패했습니다.');
         }
-        
-        // 메시지 컨테이너 초기화
-        messageContainer.innerHTML = '';
-        
-        // 시작 화면 숨기고 게임 화면 표시
-        startScreen.classList.add('hidden');
-        gameContainer.classList.remove('hidden');
-        
-        // 환영 메시지 표시
-        let welcomeMessage = gameData.welcome_message || `안녕하세요! 저는 ${characterName}입니다. 대화를 시작해 보세요.`;
-        addMessage(characterName, welcomeMessage, 'ai-message');
-        
-        // 사용자 입력 필드 포커스
-        userInput.focus();
-        
     } catch (error) {
         console.error('게임 시작 오류:', error);
-        alert(`게임을 시작하는 데 실패했습니다: ${error.message}`);
+        alert(`게임을 시작하는데 문제가 발생했습니다: ${error.message}`);
     } finally {
-        // 버튼 재활성화
+        // 게임 시작 버튼 활성화
         startSelectedBtn.disabled = false;
         startRandomBtn.disabled = false;
     }
 }
 
-// 메시지 전송 처리 함수
+// 메시지 전송 핸들러
 async function handleSendMessage() {
-    // 입력 필드에서 메시지 가져오기
+    // 입력값 가져오기 및 유효성 검사
     const message = userInput.value.trim();
-    
-    // 메시지가 비어있으면 처리하지 않음
     if (!message) {
+        userInput.focus();
         return;
     }
     
+    // 게임이 이미 종료되었는지 확인
+    if (gameEnded) {
+        alert('게임이 이미 종료되었습니다. 새 게임을 시작해주세요.');
+        return;
+    }
+    
+    // 사용자 메시지 표시
+    addMessage('user', message, 'user-message');
+    
+    // 입력창 초기화
+    userInput.value = '';
+    updateCharCount();
+    
+    // 보내기 버튼 비활성화 (중복 전송 방지)
+    sendButton.disabled = true;
+    
     try {
-        // 인터페이스 업데이트
-        userInput.value = '';
-        userInput.disabled = true;
-        sendButton.disabled = true;
-        
-        // 사용자 메시지 추가
-        addMessage('나', message, 'user-message');
-        
-        // 게임이 이미 종료되었는지 확인
-        if (gameEnded) {
-            addMessage('시스템', '게임이 이미 종료되었습니다. 새 게임을 시작하세요.', 'system-message');
-            userInput.disabled = false;
-            sendButton.disabled = false;
-            return;
-        }
-        
-        // API 호출
-        const response = await askQuestion(message);
-        
-        // AI 메시지 추가
-        if (response.message) {
-            addMessage(characterName, response.message, 'ai-message');
-        } else if (response.response) {
-            addMessage(characterName, response.response, 'ai-message');
-        }
-        
-        // 턴 업데이트
-        currentTurn = response.current_turn || currentTurn + 1;
-        updateTurnIndicator(currentTurn, maxTurns);
-        
-        // 게임 승패 확인
-        if (response.completed) {
-            gameEnded = true;
-            
-            // 승리 메시지 추가
-            if (response.victory) {
-                addMessage('시스템', '축하합니다! 승리 조건을 달성했습니다! 🎉', 'system-message success-text');
-            } else {
-                addMessage('시스템', '게임이 종료되었습니다.', 'system-message');
-            }
-            
-            // 게임 종료 컨트롤 표시
-            showGameOverControls();
-        }
-        
-        // 턴 제한 확인
-        if (currentTurn > maxTurns && !gameEnded) {
-            gameEnded = true;
-            addMessage('시스템', `최대 턴 수(${maxTurns})에 도달했습니다. 게임이 종료되었습니다.`, 'system-message');
-            showGameOverControls();
-        }
-        
+        // AI 응답 요청
+        await askQuestion(message);
     } catch (error) {
         console.error('메시지 전송 오류:', error);
-        addMessage('시스템', `오류가 발생했습니다: ${error.message}`, 'system-message error-text');
+        addMessage('system', `오류: ${error.message}`, 'error-message');
     } finally {
-        // 인터페이스 업데이트
-        userInput.disabled = false;
+        // 보내기 버튼 활성화
         sendButton.disabled = false;
         userInput.focus();
     }
 }
 
-// API로 질문 전송 함수
+// AI에게 질문하기
 async function askQuestion(message) {
-    console.log(`질문 전송: ${message}, 게임 ID: ${gameId}`);
+    console.log('AI에게 질문 전송:', message);
     
-    const response = await fetch(`${SERVER_URL}/api/ask`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            game_id: gameId,
-            message: message
-        })
-    });
-    
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API 오류:', response.status, errorText);
-        throw new Error(`API 오류: ${response.status} - ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log('API 응답:', data);
-    
-    // 오류 검사
-    if (!data.success && data.error) {
-        throw new Error(data.error);
-    }
-    
-    return data.data || data;
-}
-
-// 턴 표시기 업데이트 함수
-function updateTurnIndicator(current, max) {
-    const currentTurnEl = document.getElementById('current-turn');
-    const maxTurnsEl = document.getElementById('max-turns');
-    
-    if (currentTurnEl) currentTurnEl.textContent = current;
-    if (maxTurnsEl) maxTurnsEl.textContent = max;
-}
-
-// 게임 종료 컨트롤 표시 함수
-function showGameOverControls() {
-    if (endGameButton) endGameButton.classList.add('hidden');
-    if (newGameButton) newGameButton.classList.remove('hidden');
-}
-
-// 게임 종료 처리
-async function handleEndGame() {
     try {
-        // 사용자 확인
-        const confirmed = confirm('정말로 게임을 종료하시겠습니까?');
-        if (!confirmed) {
-            return;
-        }
+        // API 요청
+        const response = await fetch(`${SERVER_URL}/api/ask`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                game_id: gameId,
+                message: message
+            })
+        });
         
-        // 버튼 비활성화
-        endGameButton.disabled = true;
+        console.log('질문 응답 상태:', response.status, response.statusText);
         
-        // 종료 API 호출 (선택 사항)
-        try {
-            console.log('게임 종료 요청 전송:', `${SERVER_URL}/api/end`);
-            const response = await fetch(`${SERVER_URL}/api/end`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    game_id: gameId
-                })
-            });
-            
-            console.log('게임 종료 응답 상태:', response.status, response.statusText);
-            
-            if (!response.ok) {
-                console.warn(`게임 종료 요청 실패: ${response.status}`);
+        if (!response.ok) {
+            // 응답이 JSON 형식인지 확인
+            let errorMessage = '서버 응답 오류';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || `오류 코드: ${response.status}`;
+                
+                // 게임 ID가 유효하지 않은 경우
+                if (errorData.code === 'INVALID_GAME_ID') {
+                    // 자동으로 새 게임 시작 확인
+                    if (confirm('게임 세션이 만료되었습니다. 새 게임을 시작하시겠습니까?')) {
+                        handleBackToHome();
+                    }
+                }
+            } catch (e) {
+                errorMessage = `서버 응답 오류: ${response.status}`;
             }
-        } catch (apiError) {
-            console.warn('게임 종료 API 호출 오류 (무시됨):', apiError);
+            throw new Error(errorMessage);
         }
         
-        // 로컬 게임 상태 업데이트
+        const data = await response.json();
+        console.log('AI 응답 데이터:', data);
+        
+        // AI 응답 표시
+        addMessage('ai', data.response, 'ai-message');
+        
+        // 턴 업데이트
+        currentTurn = data.current_turn;
+        updateTurnIndicator(currentTurn, maxTurns);
+        
+        // 게임 종료 확인
+        if (data.completed) {
+            gameEnded = true;
+            
+            // 승리/패배 메시지 표시
+            if (data.victory) {
+                addMessage('system', '🎉 축하합니다! 승리 조건을 달성했습니다!', 'victory-message');
+            } else {
+                addMessage('system', '😥 아쉽게도 패배했습니다. 다시 도전해보세요!', 'defeat-message');
+            }
+            
+            // 게임 종료 UI 업데이트
+            showGameOverControls();
+        }
+        
+        // 게임 세션 저장
+        saveGameSession();
+    } catch (error) {
+        console.error('AI 응답 가져오기 실패:', error);
+        throw error;
+    }
+}
+
+// 턴 표시기 업데이트
+function updateTurnIndicator(current, max) {
+    document.getElementById('current-turn').textContent = current;
+    document.getElementById('max-turns').textContent = max;
+    
+    // 턴이 후반부에 접어들면 시각적 표시
+    const turnPercentage = current / max;
+    if (turnPercentage > 0.7) {
+        turnIndicator.classList.add('turn-warning');
+    } else {
+        turnIndicator.classList.remove('turn-warning');
+    }
+}
+
+// 게임 종료 컨트롤 표시
+function showGameOverControls() {
+    endGameButton.classList.add('hidden');
+    newGameButton.classList.remove('hidden');
+}
+
+// 게임 종료 핸들러
+async function handleEndGame() {
+    if (!gameId) return;
+    
+    if (!confirm('정말 게임을 종료하시겠습니까?')) {
+        return;
+    }
+    
+    try {
+        console.log('게임 종료 API 요청:', `${SERVER_URL}/api/end`);
+        
+        // API 요청
+        const response = await fetch(`${SERVER_URL}/api/end`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ game_id: gameId })
+        });
+        
+        console.log('게임 종료 응답 상태:', response.status, response.statusText);
+        
+        if (!response.ok) {
+            throw new Error(`서버 응답 오류: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('게임 종료 응답 데이터:', data);
+        
+        // 게임 종료 상태 설정
         gameEnded = true;
         
-        // 안내 메시지 추가
-        addMessage('시스템', '게임이 종료되었습니다.', 'system-message');
+        // 게임 요약 메시지 표시
+        let summaryMessage = '게임이 종료되었습니다.';
+        if (data.summary) {
+            const summary = data.summary;
+            summaryMessage += `<br><br>▶ 게임 요약:<br>- 플레이 턴 수: ${summary.turns_played}<br>- 결과: ${summary.victory ? '승리' : '패배'}`;
+        }
         
-        // 게임 종료 컨트롤 표시
+        addMessage('system', summaryMessage, 'system-message');
+        
+        // 게임 종료 UI 업데이트
         showGameOverControls();
         
+        // 세션 스토리지에서 게임 삭제
+        if (sessionStorageAvailable) {
+            sessionStorage.removeItem('gameSession');
+        }
     } catch (error) {
-        console.error('게임 종료 중 오류 발생:', error);
-        alert(`게임 종료 중 오류가 발생했습니다: ${error.message}`);
-    } finally {
-        // 버튼 재활성화
-        endGameButton.disabled = false;
+        console.error('게임 종료 오류:', error);
+        alert(`게임을 종료하는데 문제가 발생했습니다: ${error.message}`);
     }
 }
 
-// 홈으로 돌아가기 함수
+// 홈으로 돌아가기 핸들러
 function handleBackToHome() {
+    // 게임 컨테이너 숨기기
+    gameContainer.classList.add('hidden');
+    
+    // 시작 화면 표시
+    startScreen.classList.remove('hidden');
+    
+    // 게임 종료 버튼 표시, 새 게임 버튼 숨기기
+    endGameButton.classList.remove('hidden');
+    newGameButton.classList.add('hidden');
+    
     // 게임 상태 초기화
     gameId = null;
     gameEnded = false;
-    currentTurn = 1;
-    maxTurns = 0;
-    title = "";
-    winCondition = "";
-    characterName = "AI";
     
-    // UI 초기화
+    // 메시지 영역 초기화
     messageContainer.innerHTML = '';
     
-    // 게임 화면 숨김, 시작 화면 표시
-    gameContainer.classList.add('hidden');
-    startScreen.classList.remove('hidden');
+    // 입력 폼 초기화
+    userInput.value = '';
+    updateCharCount();
     
-    // 버튼 상태 초기화
-    if (endGameButton) endGameButton.classList.remove('hidden');
-    if (newGameButton) newGameButton.classList.add('hidden');
-    
-    // 게임 항목 다시 로드
+    // 게임 항목 새로고침
     fetchGameItems();
+    
+    // 세션 스토리지에서 게임 삭제
+    if (sessionStorageAvailable) {
+        sessionStorage.removeItem('gameSession');
+    }
 }
 
 // 메시지 추가 함수
 function addMessage(sender, text, className) {
-    console.log(`메시지 추가: ${sender} - ${text.substring(0, 30)}${text.length > 30 ? '...' : ''}`);
-    
-    // 메시지 요소 생성
     const messageElement = document.createElement('div');
-    messageElement.className = 'message ' + className;
+    messageElement.classList.add('message', className);
     
-    // 발신자 요소 추가
-    const senderElement = document.createElement('div');
-    senderElement.className = 'message-sender';
-    senderElement.textContent = sender;
-    messageElement.appendChild(senderElement);
+    // 이모지 추가
+    let emoji = '';
+    if (sender === 'user') {
+        emoji = '👤 ';
+    } else if (sender === 'ai') {
+        emoji = '🤖 ';
+    } else if (sender === 'system') {
+        emoji = '📢 ';
+    }
     
-    // 내용 요소 추가
-    const contentElement = document.createElement('div');
-    contentElement.className = 'message-content';
-    contentElement.textContent = text;
-    messageElement.appendChild(contentElement);
+    // HTML 태그 처리
+    if (text.includes('<br>')) {
+        const fragments = text.split('<br>');
+        fragments.forEach((fragment, index) => {
+            const p = document.createElement('p');
+            p.textContent = index === 0 ? emoji + fragment : fragment;
+            messageElement.appendChild(p);
+        });
+    } else {
+        messageElement.textContent = emoji + text;
+    }
     
-    // 메시지 컨테이너에 추가
     messageContainer.appendChild(messageElement);
-    
-    // 스크롤을 최하단으로 이동
     scrollToBottom();
 }
 
-// 메시지 영역을 최하단으로 스크롤하는 함수
+// 메시지 영역 스크롤 함수
 function scrollToBottom() {
-    const messagesDiv = document.querySelector('.messages');
-    if (messagesDiv) {
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
+    const messages = document.querySelector('.messages');
+    messages.scrollTop = messages.scrollHeight;
 } 

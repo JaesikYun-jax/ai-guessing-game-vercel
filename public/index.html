@@ -3,82 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>상황 대처 게임</title>
+    <title>상황 대처 AI 게임</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <meta name="description" content="AI와 함께하는 상황 대처 게임 - 다양한 상황에서 AI와 대화하며 목표를 달성해보세요!">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🎭 상황 대처 게임 🎭</h1>
-            <p>다양한 상황에서 대화를 통해 승리 조건을 달성하세요!</p>
+            <h1>상황 대처 AI 게임</h1>
+            <p id="server-status" class="status-message">서버 연결 확인 중...</p>
         </header>
 
-        <div id="game-status" class="status">
-            <p id="server-status">서버 연결 중...</p>
-        </div>
-
-        <div id="game-container" class="hidden">
-            <div class="game-header">
-                <div id="game-info">
-                    <p id="game-id">게임 ID: </p>
-                    <p id="category">카테고리: </p>
-                    <p id="title">시나리오: </p>
-                    <p id="win-condition">승리 조건: </p>
-                </div>
-                <div id="turn-indicator" class="turn-indicator">
-                    <span id="current-turn">1</span>/<span id="max-turns">5</span>
-                </div>
-            </div>
-            
-            <p id="character-info" class="character-info"></p>
-
-            <div class="messages">
-                <div id="message-container"></div>
-            </div>
-
-            <div class="input-area">
-                <div class="input-wrapper">
-                    <input type="text" id="user-input" placeholder="메시지를 입력하세요" maxlength="100">
-                    <div id="char-counter" class="char-counter">0/100</div>
-                </div>
-                <button id="send-btn"></button>
-            </div>
-
-            <div class="instructions">
-                <h3>게임 방법</h3>
-                <p>1. 주어진 상황에서 AI와 대화를 나누세요.</p>
-                <p>2. 제한된 턴 안에 승리 조건을 달성하는 것이 목표입니다.</p>
-                <p>3. 상황에 맞는 적절한 대화 전략을 사용하세요.</p>
-            </div>
-
-            <div class="game-controls">
-                <button id="end-game-btn" class="end-btn">게임 종료</button>
-                <button id="new-game-btn" class="new-btn hidden">새 게임 시작</button>
-            </div>
-        </div>
-
-        <div id="start-screen">
-            <h2>상황 대처 게임에 오신 것을 환영합니다!</h2>
-            <p>대화를 통해 다양한 상황을 해결하고 목표를 달성하세요.</p>
-            <p>플러팅, 면접, 물건 판매 등 다양한 상황에서 당신의 대화 능력을 시험해보세요!</p>
-            
-            <div class="game-selection">
-                <div class="selection-group">
-                    <label for="game-select">게임 선택:</label>
-                    <select id="game-select" class="game-dropdown">
-                        <option value="">-- 상황 선택 --</option>
-                        <!-- 여기에 서버에서 받아온 게임 목록이 채워집니다 -->
+        <!-- 게임 시작 화면 -->
+        <div id="start-screen" class="screen hidden">
+            <div class="card">
+                <h2>게임 선택</h2>
+                <p class="instruction">원하는 게임을 선택하거나 랜덤으로 시작하세요!</p>
+                
+                <div class="game-selection">
+                    <label for="game-select">게임 시나리오:</label>
+                    <select id="game-select" class="select-box">
+                        <option value="">-- 게임을 선택하세요 --</option>
                     </select>
                 </div>
+                
                 <div class="button-group">
-                    <button type="button" id="start-selected-btn" class="start-btn">선택 게임 시작</button>
-                    <button type="button" id="start-random-btn" class="start-btn random-btn">랜덤 게임 시작</button>
+                    <button id="start-selected-btn" class="btn primary-btn">
+                        <i class="fas fa-play"></i> 선택 게임 시작
+                    </button>
+                    <button id="start-random-btn" class="btn secondary-btn">
+                        <i class="fas fa-random"></i> 랜덤 게임 시작
+                    </button>
+                </div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-card">
+                    <h3><i class="fas fa-info-circle"></i> 게임 안내</h3>
+                    <ul>
+                        <li>다양한 상황에서 AI와 대화하며 목표를 달성하는 게임입니다</li>
+                        <li>각 게임마다 정해진 턴 수 내에 승리 조건을 달성해야 합니다</li>
+                        <li>관련 없는 대화는 진행에 도움이 되지 않을 수 있습니다</li>
+                        <li>게임 도중 언제든 종료 버튼을 눌러 게임을 끝낼 수 있습니다</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 화면 -->
+        <div id="game-container" class="screen hidden">
+            <div class="game-header">
+                <div class="game-info">
+                    <p id="game-id">게임 ID: </p>
+                    <p id="category">카테고리: </p>
+                    <div class="turn-info">
+                        <p id="turn-indicator">턴: <span id="current-turn">1</span>/<span id="max-turns">5</span></p>
+                    </div>
+                </div>
+                <div class="game-title">
+                    <h2 id="title">시나리오: </h2>
+                    <p id="win-condition">승리 조건: </p>
+                </div>
+            </div>
+            
+            <div class="character-info-box">
+                <p id="character-info" class="character-info"></p>
+            </div>
+            
+            <div class="messages-container">
+                <div id="message-container" class="messages"></div>
+            </div>
+            
+            <div class="input-container">
+                <textarea id="user-input" placeholder="메시지를 입력하세요..." maxlength="500"></textarea>
+                <div class="input-controls">
+                    <span id="char-counter" class="char-counter">0/500</span>
+                    <button id="send-btn" class="btn primary-btn">
+                        <i class="fas fa-paper-plane"></i> 전송
+                    </button>
+                </div>
+                <div class="game-controls">
+                    <button id="end-game-btn" class="btn danger-btn">
+                        <i class="fas fa-stop-circle"></i> 게임 종료
+                    </button>
+                    <button id="new-game-btn" class="btn success-btn hidden">
+                        <i class="fas fa-plus-circle"></i> 새 게임
+                    </button>
                 </div>
             </div>
         </div>
     </div>
-
+    <footer>
+        <p>&copy; 2023 상황 대처 AI 게임</p>
+    </footer>
     <script src="script.js"></script>
 </body>
 </html> 
