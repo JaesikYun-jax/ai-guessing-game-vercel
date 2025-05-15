@@ -28,9 +28,10 @@ const startSelectedBtn = document.getElementById('start-selected-btn');
 const startRandomBtn = document.getElementById('start-random-btn');
 const characterInfoElement = document.getElementById('character-info');
 
-// 서버 주소 설정 (프로덕션 환경에서는 실제 서버 주소로 변경)
-const SERVER_URL = window.location.origin;
-// const SERVER_URL = 'http://localhost:5002'; // 하드코딩된 서버 URL
+// 서버 주소 설정 (API 서버 URL로 하드코딩)
+const SERVER_URL = 'https://flask-vercel-ebon.vercel.app';
+// const SERVER_URL = window.location.origin; // 같은 오리진 사용 (현재는 서버가 별도 도메인에 있으므로 사용하지 않음)
+// const SERVER_URL = 'http://localhost:5002'; // 로컬 테스트용 URL
 
 // 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
 document.addEventListener('DOMContentLoaded', async () => {
