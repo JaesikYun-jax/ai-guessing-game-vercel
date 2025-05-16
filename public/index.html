@@ -93,10 +93,221 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 오류 메시지 모달 -->
+        <div id="error-modal" class="modal hidden">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h3><i class="fas fa-exclamation-triangle"></i> 오류 발생</h3>
+                <p id="error-message">오류가 발생했습니다.</p>
+                <button id="retry-btn" class="btn primary-btn">
+                    <i class="fas fa-sync"></i> 다시 시도
+                </button>
+            </div>
+        </div>
     </div>
     <footer>
         <p>&copy; 2023 상황 대처 AI 게임</p>
     </footer>
+    
+    <!-- 직접 스크립트 추가 (script.js는 유지) -->
+    <script>
+        // API 서버 URL 하드코딩
+        const API_SERVER = 'https://flask-vercel-ebon.vercel.app';
+        
+        // 전역 변수
+        let gameId = null;
+        let gameEnded = false;
+        let currentTurn = 1;
+        let maxTurns = 0;
+        let title = "";
+        let winCondition = "";
+        let characterName = "AI";
+        let gameItems = [];
+        
+        // DOM 요소
+        const serverStatus = document.getElementById('server-status');
+        const startScreen = document.getElementById('start-screen');
+        const gameContainer = document.getElementById('game-container');
+        const gameSelect = document.getElementById('game-select');
+        const startSelectedBtn = document.getElementById('start-selected-btn');
+        const startRandomBtn = document.getElementById('start-random-btn');
+        const errorModal = document.getElementById('error-modal');
+        const errorMessage = document.getElementById('error-message');
+        const retryBtn = document.getElementById('retry-btn');
+        const closeBtn = document.querySelector('.close-btn');
+        
+        // 페이지 로드 시 서버 상태 확인 및 게임 목록 로드
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('페이지 로드됨, API 서버:', API_SERVER);
+            checkServerStatus();
+            
+            // 이벤트 리스너 등록
+            startSelectedBtn.addEventListener('click', () => handleStartGame('selected'));
+            startRandomBtn.addEventListener('click', () => handleStartGame('random'));
+            retryBtn.addEventListener('click', checkServerStatus);
+            closeBtn.addEventListener('click', () => errorModal.classList.add('hidden'));
+        });
+        
+        // 서버 상태 확인
+        async function checkServerStatus() {
+            try {
+                console.log('서버 상태 확인 중...');
+                serverStatus.textContent = '서버 연결 중...';
+                serverStatus.classList.remove('success-text', 'error-text');
+                
+                const response = await fetch(`${API_SERVER}/api/health`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-cache'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`서버 응답 오류: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data && data.status === 'online') {
+                    serverStatus.textContent = `✅ 서버 연결 성공 (${data.status})`;
+                    serverStatus.classList.add('success-text');
+                    startScreen.classList.remove('hidden');
+                    
+                    // 게임 목록 로드
+                    fetchGameItems();
+                } else {
+                    throw new Error('서버 상태가 온라인이 아닙니다');
+                }
+            } catch (error) {
+                console.error('서버 연결 실패:', error);
+                serverStatus.textContent = `❌ 서버 연결 실패: ${error.message}`;
+                serverStatus.classList.add('error-text');
+                showErrorModal(`서버에 연결할 수 없습니다: ${error.message}`);
+            }
+        }
+        
+        // 게임 목록 가져오기
+        async function fetchGameItems() {
+            try {
+                console.log('게임 목록 요청 중...');
+                
+                const response = await fetch(`${API_SERVER}/api/games`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-cache'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`게임 목록 요청 오류: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && Array.isArray(data.data)) {
+                    gameItems = data.data;
+                    console.log(`${gameItems.length}개의 게임 항목 로드됨`);
+                    populateGameSelect(gameItems);
+                } else {
+                    throw new Error('게임 목록을 불러올 수 없습니다');
+                }
+            } catch (error) {
+                console.error('게임 목록 가져오기 실패:', error);
+                showErrorModal(`게임 목록을 가져올 수 없습니다: ${error.message}`);
+            }
+        }
+        
+        // 게임 선택 드롭다운 채우기
+        function populateGameSelect(items) {
+            // 기존 옵션 제거 (첫 번째 옵션 제외)
+            while (gameSelect.options.length > 1) {
+                gameSelect.remove(1);
+            }
+            
+            // 카테고리별로 그룹화
+            const categorizedItems = {};
+            
+            items.forEach(item => {
+                const category = item.category || '기타';
+                if (!categorizedItems[category]) {
+                    categorizedItems[category] = [];
+                }
+                categorizedItems[category].push(item);
+            });
+            
+            // 카테고리별 optgroup 생성
+            for (const category in categorizedItems) {
+                const group = document.createElement('optgroup');
+                group.label = category;
+                
+                // 해당 카테고리의 게임들 추가
+                categorizedItems[category].forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.textContent = `${item.title} (${item.difficulty || '보통'}, ${item.max_turns}턴)`;
+                    group.appendChild(option);
+                });
+                
+                gameSelect.appendChild(group);
+            }
+        }
+        
+        // 게임 시작 핸들러 
+        async function handleStartGame(mode) {
+            try {
+                // 선택 모드에서 게임 ID 확인
+                let selectedGameId = null;
+                if (mode === 'selected') {
+                    selectedGameId = gameSelect.value;
+                    if (!selectedGameId) {
+                        alert('게임을 선택해주세요.');
+                        return;
+                    }
+                }
+                
+                // 버튼 비활성화
+                startSelectedBtn.disabled = true;
+                startRandomBtn.disabled = true;
+                
+                // API 요청
+                const response = await fetch(`${API_SERVER}/api/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        item_id: selectedGameId,
+                        test: true  // 테스트 모드
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`게임 시작 요청 오류: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    // 게임 시작 처리는 script.js에 위임
+                    console.log('게임 데이터 로드 성공:', data);
+                } else {
+                    throw new Error(data.error || '게임을 시작할 수 없습니다');
+                }
+            } catch (error) {
+                console.error('게임 시작 오류:', error);
+                showErrorModal(`게임을 시작할 수 없습니다: ${error.message}`);
+                
+                // 버튼 다시 활성화
+                startSelectedBtn.disabled = false;
+                startRandomBtn.disabled = false;
+            }
+        }
+        
+        // 오류 모달 표시
+        function showErrorModal(message) {
+            errorMessage.textContent = message;
+            errorModal.classList.remove('hidden');
+        }
+    </script>
+    
+    <!-- 기존 스크립트 유지 -->
     <script src="script.js"></script>
 </body>
 </html> 
