@@ -7,7 +7,6 @@ let title = "";
 let winCondition = "";
 let characterName = "AI"; // 캐릭터 이름
 let gameItems = []; // 서버에서 받아온 게임 항목 목록
-let sessionStorageAvailable = false; // 세션 스토리지 사용 가능 여부
 
 // DOM 요소
 const serverStatus = document.getElementById('server-status');
@@ -33,28 +32,12 @@ const characterInfoElement = document.getElementById('character-info');
 const SERVER_URL = window.API_SERVER || 'https://flask-vercel-ebon.vercel.app';
 const USE_TEST_MODE = window.USE_TEST_MODE || true; // 테스트 모드 활성화
 
-// 세션 스토리지 사용 가능 여부 확인
-try {
-    sessionStorage.setItem('test', 'test');
-    sessionStorage.removeItem('test');
-    sessionStorageAvailable = true;
-    console.log('세션 스토리지 사용 가능');
-} catch (e) {
-    sessionStorageAvailable = false;
-    console.warn('세션 스토리지 사용 불가:', e);
-}
-
-// 페이지 로드 시 서버 상태 확인 및 게임 목록 가져오기
+// 페이지 로드 시 이벤트 리스너 등록
 document.addEventListener('DOMContentLoaded', async () => {
     // 콘솔에 디버그 메시지 출력
     console.log('페이지 로드됨, 이벤트 리스너 설정 시작');
     console.log('서버 URL:', SERVER_URL);
     console.log('테스트 모드:', USE_TEST_MODE ? '활성화' : '비활성화');
-    
-    // 저장된 게임 세션은 더 이상 사용하지 않습니다.
-    if (sessionStorageAvailable) {
-        sessionStorage.removeItem('gameSession');
-    }
     
     // 이벤트 리스너 등록
     console.log('버튼 이벤트 리스너 추가 시작');
@@ -267,11 +250,6 @@ async function handleEndGame() {
         
         // 게임 종료 UI 업데이트
         showGameOverControls();
-        
-        // 세션 스토리지에서 게임 삭제
-        if (sessionStorageAvailable) {
-            sessionStorage.removeItem('gameSession');
-        }
     } catch (error) {
         console.error('게임 종료 오류:', error);
         alert(`게임을 종료하는데 문제가 발생했습니다: ${error.message}`);
@@ -300,11 +278,6 @@ function handleBackToHome() {
     // 입력 폼 초기화
     userInput.value = '';
     updateCharCount();
-    
-    // 세션 스토리지에서 게임 삭제
-    if (sessionStorageAvailable) {
-        sessionStorage.removeItem('gameSession');
-    }
 }
 
 // 메시지 추가 함수
