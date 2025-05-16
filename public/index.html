@@ -110,10 +110,161 @@
         <p>&copy; 2023 상황 대처 AI 게임</p>
     </footer>
     
+    <!-- 디버그 패널 -->
+    <div id="debug-panel" class="debug-panel">
+        <div class="debug-header">
+            <h3>디버그 정보 <span id="debug-status" class="badge">닫힘</span></h3>
+            <button id="toggle-debug" class="btn debug-toggle">디버그 패널 열기</button>
+            <button id="clear-debug" class="btn debug-clear">로그 지우기</button>
+        </div>
+        <div id="debug-content" class="debug-content hidden">
+            <div id="debug-log" class="debug-log"></div>
+            <div class="debug-info">
+                <div class="debug-section">
+                    <h4>API 상태</h4>
+                    <p id="debug-api-status">확인 중...</p>
+                </div>
+                <div class="debug-section">
+                    <h4>세션 정보</h4>
+                    <p id="debug-session">-</p>
+                </div>
+                <div class="debug-section">
+                    <h4>마지막 응답</h4>
+                    <pre id="debug-last-response">-</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        .debug-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            color: #fff;
+            border-top: 2px solid #333;
+            font-family: monospace;
+            z-index: 9999;
+        }
+        
+        .debug-header {
+            padding: 5px 10px;
+            display: flex;
+            align-items: center;
+            background: #333;
+        }
+        
+        .debug-header h3 {
+            margin: 0;
+            flex-grow: 1;
+            font-size: 1rem;
+        }
+        
+        .debug-toggle, .debug-clear {
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            margin-left: 10px;
+            background: #555;
+            color: #fff;
+            border: 1px solid #777;
+        }
+        
+        .debug-content {
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .debug-content.hidden {
+            display: none;
+        }
+        
+        .debug-log {
+            border: 1px solid #444;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #222;
+            overflow-y: auto;
+            max-height: 150px;
+            flex-grow: 1;
+        }
+        
+        .debug-info {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .debug-section {
+            flex: 1;
+            padding: 0 10px;
+            border-left: 1px solid #444;
+        }
+        
+        .debug-section:first-child {
+            border-left: none;
+        }
+        
+        .debug-section h4 {
+            margin: 0 0 5px 0;
+            color: #0f0;
+        }
+        
+        .badge {
+            background: #555;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            margin-left: 10px;
+        }
+        
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+            border-bottom: 1px dotted #333;
+        }
+        
+        .log-time {
+            color: #0f0;
+            margin-right: 5px;
+        }
+        
+        .log-level-info {
+            color: #6cf;
+        }
+        
+        .log-level-warn {
+            color: #fc3;
+        }
+        
+        .log-level-error {
+            color: #f66;
+        }
+        
+        .log-level-success {
+            color: #6f6;
+        }
+        
+        pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin: 0;
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+        }
+    </style>
+    
     <!-- 직접 스크립트 추가 (script.js는 유지) -->
     <script>
         // API 서버 URL 설정 (script.js에서 참조)
         window.API_SERVER = 'https://flask-vercel-ebon.vercel.app';
+        
+        // 디버그 기능 설정
+        window.DEBUG = true;
         
         // DOM 요소
         const serverStatus = document.getElementById('server-status');
@@ -127,9 +278,115 @@
         const retryBtn = document.getElementById('retry-btn');
         const closeBtn = document.querySelector('.close-btn');
         
+        // 디버그 패널 요소
+        const debugPanel = document.getElementById('debug-panel');
+        const debugContent = document.getElementById('debug-content');
+        const debugLog = document.getElementById('debug-log');
+        const debugApiStatus = document.getElementById('debug-api-status');
+        const debugSession = document.getElementById('debug-session');
+        const debugLastResponse = document.getElementById('debug-last-response');
+        const toggleDebugBtn = document.getElementById('toggle-debug');
+        const clearDebugBtn = document.getElementById('clear-debug');
+        const debugStatus = document.getElementById('debug-status');
+        
+        // 디버그 로그 함수
+        function debug(message, level = 'info') {
+            if (!window.DEBUG) return;
+            
+            const time = new Date().toTimeString().split(' ')[0];
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-level-${level}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            
+            if (debugLog) {
+                debugLog.appendChild(entry);
+                debugLog.scrollTop = debugLog.scrollHeight;
+            }
+            
+            // 콘솔에도 출력
+            switch (level) {
+                case 'error':
+                    console.error(message);
+                    break;
+                case 'warn':
+                    console.warn(message);
+                    break;
+                case 'success':
+                    console.log('%c' + message, 'color: green');
+                    break;
+                default:
+                    console.log(message);
+            }
+        }
+        
+        // 디버그 패널 이벤트 리스너
+        if (toggleDebugBtn) {
+            toggleDebugBtn.addEventListener('click', () => {
+                const isVisible = !debugContent.classList.contains('hidden');
+                if (isVisible) {
+                    debugContent.classList.add('hidden');
+                    toggleDebugBtn.textContent = '디버그 패널 열기';
+                    debugStatus.textContent = '닫힘';
+                } else {
+                    debugContent.classList.remove('hidden');
+                    toggleDebugBtn.textContent = '디버그 패널 닫기';
+                    debugStatus.textContent = '열림';
+                }
+            });
+        }
+        
+        if (clearDebugBtn) {
+            clearDebugBtn.addEventListener('click', () => {
+                debugLog.innerHTML = '';
+                debug('로그가 지워졌습니다.');
+            });
+        }
+        
+        // 디버그 패널에 API 상태 업데이트
+        function updateDebugApiStatus(status, message) {
+            if (!debugApiStatus) return;
+            
+            debugApiStatus.innerHTML = `
+                <div>상태: <strong>${status}</strong></div>
+                <div>메시지: ${message}</div>
+                <div>마지막 확인: ${new Date().toLocaleTimeString()}</div>
+            `;
+        }
+        
+        // 디버그 패널에 세션 정보 업데이트
+        function updateDebugSession(sessionData) {
+            if (!debugSession) return;
+            
+            if (!sessionData || !sessionData.game_id) {
+                debugSession.textContent = "활성 세션 없음";
+                return;
+            }
+            
+            debugSession.innerHTML = `
+                <div>게임 ID: <strong>${sessionData.game_id || '-'}</strong></div>
+                <div>턴: ${sessionData.current_turn || 0}/${sessionData.max_turns || 0}</div>
+                <div>게임 상태: ${sessionData.completed ? '종료됨' : '진행 중'}</div>
+            `;
+        }
+        
+        // 디버그 패널에 마지막 응답 업데이트
+        function updateDebugLastResponse(response) {
+            if (!debugLastResponse) return;
+            
+            try {
+                const formatted = typeof response === 'string' 
+                    ? response 
+                    : JSON.stringify(response, null, 2);
+                debugLastResponse.textContent = formatted;
+            } catch (e) {
+                debugLastResponse.textContent = `응답 형식화 오류: ${e.message}`;
+            }
+        }
+        
         // 페이지 로드 시 서버 상태 확인 및 게임 목록 로드
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('페이지 로드됨, API 서버:', window.API_SERVER);
+            debug('페이지 로드됨, 디버그 모드 활성화');
+            debug(`API 서버: ${window.API_SERVER}`);
             
             // 서버 상태 확인
             checkServerStatus();
@@ -144,49 +401,67 @@
         // 서버 상태 확인
         async function checkServerStatus() {
             try {
-                console.log('서버 상태 확인 중...');
+                debug('서버 상태 확인 중...');
                 serverStatus.textContent = '서버 연결 중...';
                 serverStatus.classList.remove('success-text', 'error-text');
                 
+                debug(`API 요청: GET ${window.API_SERVER}/api/health`);
                 const response = await fetch(`${window.API_SERVER}/api/health`, {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                     cache: 'no-cache'
                 });
                 
+                debug(`API 응답 상태: ${response.status} ${response.statusText}`);
+                
                 if (!response.ok) {
                     throw new Error(`서버 응답 오류: ${response.status}`);
                 }
                 
                 const data = await response.json();
+                debug(`API 응답 데이터: ${JSON.stringify(data)}`);
+                updateDebugLastResponse(data);
                 
                 if (data && data.status === 'online') {
-                    serverStatus.textContent = `✅ 서버 연결 성공 (${data.status})`;
+                    const statusMessage = `✅ 서버 연결 성공 (${data.status})`;
+                    serverStatus.textContent = statusMessage;
                     serverStatus.classList.add('success-text');
                     startScreen.classList.remove('hidden');
+                    
+                    debug(statusMessage, 'success');
+                    updateDebugApiStatus('온라인', data.message || '정상 작동 중');
                     
                     // 게임 목록 로드
                     fetchGameItems();
                 } else if (data && data.status === 'error') {
                     // API 키가 없는 경우 등의 오류 처리
-                    serverStatus.textContent = `❌ 서버 오류: ${data.message}`;
+                    const errorMsg = `❌ 서버 오류: ${data.message}`;
+                    serverStatus.textContent = errorMsg;
                     serverStatus.classList.add('error-text');
                     showErrorModal(`API 서버 오류: ${data.message}`);
+                    
+                    debug(errorMsg, 'error');
+                    updateDebugApiStatus('오류', data.message || '서버 오류');
                 } else {
                     throw new Error('서버 상태가 온라인이 아닙니다');
                 }
             } catch (error) {
                 console.error('서버 연결 실패:', error);
-                serverStatus.textContent = `❌ 서버 연결 실패: ${error.message}`;
+                const errorMsg = `❌ 서버 연결 실패: ${error.message}`;
+                serverStatus.textContent = errorMsg;
                 serverStatus.classList.add('error-text');
                 showErrorModal(`서버에 연결할 수 없습니다: ${error.message}`);
+                
+                debug(errorMsg, 'error');
+                updateDebugApiStatus('연결 실패', error.message);
             }
         }
         
         // 게임 목록 가져오기
         async function fetchGameItems() {
             try {
-                console.log('게임 목록 요청 중...');
+                debug('게임 목록 요청 중...');
+                debug(`API 요청: GET ${window.API_SERVER}/api/games`);
                 
                 const response = await fetch(`${window.API_SERVER}/api/games`, {
                     method: 'GET',
@@ -194,57 +469,27 @@
                     cache: 'no-cache'
                 });
                 
+                debug(`API 응답 상태: ${response.status} ${response.statusText}`);
+                
                 if (!response.ok) {
                     throw new Error(`게임 목록 요청 오류: ${response.status}`);
                 }
                 
                 const data = await response.json();
+                debug(`API 응답 데이터(길이): ${JSON.stringify(data).length}바이트`);
+                updateDebugLastResponse(data);
                 
                 if (data.success && Array.isArray(data.data)) {
                     window.gameItems = data.data;
-                    console.log(`${window.gameItems.length}개의 게임 항목 로드됨`);
+                    debug(`${window.gameItems.length}개의 게임 항목 로드됨`, 'success');
                     populateGameSelect(window.gameItems);
                 } else {
                     throw new Error('게임 목록을 불러올 수 없습니다');
                 }
             } catch (error) {
                 console.error('게임 목록 가져오기 실패:', error);
+                debug(`게임 목록 가져오기 실패: ${error.message}`, 'error');
                 showErrorModal(`게임 목록을 가져올 수 없습니다: ${error.message}`);
-            }
-        }
-        
-        // 게임 선택 드롭다운 채우기
-        function populateGameSelect(items) {
-            // 기존 옵션 제거 (첫 번째 옵션 제외)
-            while (gameSelect.options.length > 1) {
-                gameSelect.remove(1);
-            }
-            
-            // 카테고리별로 그룹화
-            const categorizedItems = {};
-            
-            items.forEach(item => {
-                const category = item.category || '기타';
-                if (!categorizedItems[category]) {
-                    categorizedItems[category] = [];
-                }
-                categorizedItems[category].push(item);
-            });
-            
-            // 카테고리별 optgroup 생성
-            for (const category in categorizedItems) {
-                const group = document.createElement('optgroup');
-                group.label = category;
-                
-                // 해당 카테고리의 게임들 추가
-                categorizedItems[category].forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item.id;
-                    option.textContent = `${item.title} (${item.difficulty || '보통'}, ${item.max_turns}턴)`;
-                    group.appendChild(option);
-                });
-                
-                gameSelect.appendChild(group);
             }
         }
         
@@ -256,37 +501,53 @@
                 if (mode === 'selected') {
                     selectedGameId = gameSelect.value;
                     if (!selectedGameId) {
+                        debug('게임이 선택되지 않음', 'warn');
                         alert('게임을 선택해주세요.');
                         return;
                     }
                 }
                 
+                debug(`게임 시작 요청: 모드=${mode}, 게임ID=${selectedGameId || 'random'}`);
+                
                 // 버튼 비활성화
                 startSelectedBtn.disabled = true;
                 startRandomBtn.disabled = true;
+                
+                // API 요청 준비
+                const requestBody = JSON.stringify({
+                    item_id: selectedGameId
+                });
+                debug(`API 요청: POST ${window.API_SERVER}/api/start`);
+                debug(`요청 데이터: ${requestBody}`);
                 
                 // API 요청
                 const response = await fetch(`${window.API_SERVER}/api/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        item_id: selectedGameId
-                    })
+                    body: requestBody
                 });
+                
+                debug(`API 응답 상태: ${response.status} ${response.statusText}`);
                 
                 if (!response.ok) {
                     throw new Error(`게임 시작 요청 오류: ${response.status}`);
                 }
                 
                 const data = await response.json();
+                debug(`API 응답 데이터(길이): ${JSON.stringify(data).length}바이트`);
+                updateDebugLastResponse(data);
                 
                 if (data.success && data.data) {
-                    console.log('게임 데이터 로드 성공:', data);
+                    debug('게임 데이터 로드 성공', 'success');
+                    debug(`게임 ID: ${data.data.game_id}`);
+                    updateDebugSession(data.data);
                     
                     // script.js 함수 호출하여 게임을 실제로 시작
                     if (window.startGameWithData && typeof window.startGameWithData === 'function') {
                         window.startGameWithData(data.data);
+                        debug('startGameWithData 함수 호출됨', 'success');
                     } else {
+                        debug('startGameWithData 함수를 찾을 수 없습니다!', 'error');
                         console.error('startGameWithData 함수를 찾을 수 없습니다!');
                     }
                 } else {
@@ -294,6 +555,7 @@
                 }
             } catch (error) {
                 console.error('게임 시작 오류:', error);
+                debug(`게임 시작 오류: ${error.message}`, 'error');
                 showErrorModal(`게임을 시작할 수 없습니다: ${error.message}`);
                 
                 // 버튼 다시 활성화
@@ -306,6 +568,7 @@
         function showErrorModal(message) {
             errorMessage.textContent = message;
             errorModal.classList.remove('hidden');
+            debug(`오류 모달 표시: ${message}`, 'warn');
         }
     </script>
     

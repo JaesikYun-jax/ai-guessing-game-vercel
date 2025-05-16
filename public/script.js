@@ -122,20 +122,36 @@ async function handleSendMessage() {
 
 // AI에게 질문하기
 async function askQuestion(message) {
-    console.log('AI에게 질문 전송:', message);
+    if (window.debug) {
+        window.debug('AI에게 질문 전송: ' + message);
+        window.debug(`API 요청: POST ${SERVER_URL}/api/ask, 게임 ID: ${gameId}`);
+    } else {
+        console.log('AI에게 질문 전송:', message);
+    }
     
     try {
+        // 요청 페이로드 준비
+        const payload = {
+            game_id: gameId,
+            message: message
+        };
+        
+        if (window.debug) {
+            window.debug(`요청 데이터: ${JSON.stringify(payload)}`);
+        }
+        
         // API 요청
         const response = await fetch(`${SERVER_URL}/api/ask`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                game_id: gameId,
-                message: message
-            })
+            body: JSON.stringify(payload)
         });
         
-        console.log('질문 응답 상태:', response.status, response.statusText);
+        if (window.debug) {
+            window.debug(`응답 상태: ${response.status} ${response.statusText}`);
+        } else {
+            console.log('질문 응답 상태:', response.status, response.statusText);
+        }
         
         if (!response.ok) {
             // 응답이 JSON 형식인지 확인
@@ -144,8 +160,16 @@ async function askQuestion(message) {
                 const errorData = await response.json();
                 errorMessage = errorData.error || `오류 코드: ${response.status}`;
                 
+                if (window.debug) {
+                    window.debug(`오류 응답 데이터: ${JSON.stringify(errorData)}`, 'error');
+                }
+                
                 // 게임 ID가 유효하지 않은 경우
                 if (errorData.code === 'INVALID_GAME_ID') {
+                    if (window.debug) {
+                        window.debug('게임 세션 만료됨: INVALID_GAME_ID', 'warn');
+                    }
+                    
                     // 자동으로 새 게임 시작 확인
                     if (confirm('게임 세션이 만료되었습니다. 새 게임을 시작하시겠습니까?')) {
                         handleBackToHome();
@@ -153,12 +177,32 @@ async function askQuestion(message) {
                 }
             } catch (e) {
                 errorMessage = `서버 응답 오류: ${response.status}`;
+                if (window.debug) {
+                    window.debug(`응답을 JSON으로 파싱할 수 없음: ${e.message}`, 'error');
+                }
             }
             throw new Error(errorMessage);
         }
         
         const data = await response.json();
-        console.log('AI 응답 데이터:', data);
+        
+        if (window.debug) {
+            window.debug(`API 응답 데이터(길이): ${JSON.stringify(data).length}바이트`);
+            window.debug(`AI 응답: ${data.response}`);
+            if (window.updateDebugLastResponse) {
+                window.updateDebugLastResponse(data);
+            }
+            if (window.updateDebugSession) {
+                window.updateDebugSession({
+                    game_id: gameId,
+                    current_turn: data.current_turn,
+                    max_turns: data.max_turns,
+                    completed: data.completed
+                });
+            }
+        } else {
+            console.log('AI 응답 데이터:', data);
+        }
         
         // AI 응답 표시
         addMessage('ai', data.response, 'ai-message');
@@ -173,8 +217,14 @@ async function askQuestion(message) {
             
             // 승리/패배 메시지 표시
             if (data.victory) {
+                if (window.debug) {
+                    window.debug('게임 승리! 승리 조건 달성', 'success');
+                }
                 addMessage('system', '🎉 축하합니다! 승리 조건을 달성했습니다!', 'victory-message');
             } else {
+                if (window.debug) {
+                    window.debug('게임 패배: 턴 제한 초과 또는 패배 조건 충족', 'warn');
+                }
                 addMessage('system', '😥 아쉽게도 패배했습니다. 다시 도전해보세요!', 'defeat-message');
             }
             
@@ -182,7 +232,11 @@ async function askQuestion(message) {
             showGameOverControls();
         }
     } catch (error) {
-        console.error('AI 응답 가져오기 실패:', error);
+        if (window.debug) {
+            window.debug(`AI 응답 가져오기 실패: ${error.message}`, 'error');
+        } else {
+            console.error('AI 응답 가져오기 실패:', error);
+        }
         throw error;
     }
 }
@@ -317,6 +371,11 @@ function scrollToBottom() {
 
 // 인라인 스크립트에서 호출할 수 있도록 함수 노출
 window.startGameWithData = function(gameData) {
+    if (window.debug) {
+        window.debug(`게임 시작: ${gameData.title} (ID: ${gameData.game_id})`);
+        window.debug(`승리 조건: ${gameData.win_condition}, 턴 제한: ${gameData.max_turns}`);
+    }
+    
     // 게임 정보 저장
     gameId = gameData.game_id;
     title = gameData.title;
@@ -357,5 +416,9 @@ window.startGameWithData = function(gameData) {
     startSelectedBtn.disabled = false; 
     startRandomBtn.disabled = false;
     
-    console.log('게임이 성공적으로 시작되었습니다:', gameId);
+    if (window.debug) {
+        window.debug('게임이 성공적으로 시작되었습니다', 'success');
+    } else {
+        console.log('게임이 성공적으로 시작되었습니다:', gameId);
+    }
 }; 
