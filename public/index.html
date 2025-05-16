@@ -529,7 +529,9 @@
                 const response = await fetch(`${window.API_SERVER}/api/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: requestBody
+                    body: requestBody,
+                    mode: 'cors',
+                    credentials: 'omit'
                 });
                 
                 debug(`API 응답 상태: ${response.status} ${response.statusText}`);
@@ -538,9 +540,19 @@
                     throw new Error(`게임 시작 요청 오류: ${response.status}`);
                 }
                 
-                const data = await response.json();
-                debug(`API 응답 데이터(길이): ${JSON.stringify(data).length}바이트`);
-                updateDebugLastResponse(data);
+                // 응답 본문 텍스트 먼저 가져오기
+                const responseText = await response.text();
+                debug(`API 응답 원본: ${responseText.substring(0, 100)}...`);
+                
+                // 응답이 유효한 JSON인지 확인
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    debug(`API 응답 파싱 성공, 데이터 유형: ${typeof data}`);
+                } catch (parseError) {
+                    debug(`API 응답 JSON 파싱 오류: ${parseError.message}`, 'error');
+                    throw new Error(`API 응답을 처리할 수 없습니다: ${parseError.message}`);
+                }
                 
                 if (data.success && data.data) {
                     debug('게임 데이터 로드 성공', 'success');
