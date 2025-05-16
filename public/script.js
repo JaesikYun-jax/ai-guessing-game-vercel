@@ -6,7 +6,7 @@ let maxTurns = 0;
 let title = "";
 let winCondition = "";
 let characterName = "AI"; // 캐릭터 이름
-let gameItems = []; // 게임 항목 목록
+let gameItems = []; // 서버에서 받아온 게임 항목 목록
 let sessionStorageAvailable = false; // 세션 스토리지 사용 가능 여부
 
 // DOM 요소
@@ -51,50 +51,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('서버 URL:', SERVER_URL);
     console.log('테스트 모드:', USE_TEST_MODE ? '활성화' : '비활성화');
     
-    // 저장된 게임 세션 확인
+    // 저장된 게임 세션은 더 이상 사용하지 않습니다.
     if (sessionStorageAvailable) {
-        try {
-            const savedSession = sessionStorage.getItem('gameSession');
-            if (savedSession) {
-                const session = JSON.parse(savedSession);
-                console.log('저장된 게임 세션 발견:', session);
-                
-                // 세션이 최근 것인지 확인 (30분 이내)
-                const sessionTime = new Date(session.timestamp || 0);
-                const currentTime = new Date();
-                const timeDiff = (currentTime - sessionTime) / (1000 * 60); // 분 단위
-                
-                if (timeDiff < 30 && !session.completed) {
-                    // 유효한 최근 세션, 게임 복원
-                    console.log('유효한 게임 세션 복원');
-                    restoreGameSession(session);
-                } else {
-                    // 오래된 세션 또는 완료된 세션, 삭제
-                    console.log('만료된 세션 삭제 (경과 시간:', timeDiff, '분)');
-                    sessionStorage.removeItem('gameSession');
-                }
-            }
-        } catch (error) {
-            console.error('세션 복원 오류:', error);
-            sessionStorage.removeItem('gameSession');
-        }
+        sessionStorage.removeItem('gameSession');
     }
-    
-    // 서버 상태 확인 시작
-    await checkServerStatus();
     
     // 이벤트 리스너 등록
     console.log('버튼 이벤트 리스너 추가 시작');
-    startSelectedBtn.addEventListener('click', () => {
-        console.log('선택 게임 시작 버튼 클릭됨');
-        handleStartGame('selected');
-    });
     
-    startRandomBtn.addEventListener('click', () => {
-        console.log('랜덤 게임 시작 버튼 클릭됨');
-        handleStartGame('random');
-    });
-    
+    // 게임 시작 기능은 index.html의 인라인 스크립트에서 처리하므로 여기서는 다른 버튼들만 처리
     sendButton.addEventListener('click', handleSendMessage);
     userInput.addEventListener('keypress', (event) => {
         if (event.key === 'Enter') {
@@ -114,93 +79,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkButtonsExist();
 });
 
-// 게임 세션 복원 함수
-function restoreGameSession(session) {
-    if (!session) return;
-    
-    // 게임 상태 복원
-    gameId = session.gameId;
-    title = session.title;
-    currentTurn = session.currentTurn || 1;
-    maxTurns = session.maxTurns || 5;
-    winCondition = session.winCondition || "";
-    characterName = session.characterName || "AI";
-    gameEnded = session.completed || false;
-    
-    // UI 업데이트
-    gameIdElement.textContent = `게임 ID: ${gameId}`;
-    categoryElement.textContent = `카테고리: ${session.category || ""}`;
-    titleElement.textContent = `시나리오: ${title}`;
-    winConditionElement.textContent = `승리 조건: ${winCondition}`;
-    updateTurnIndicator(currentTurn, maxTurns);
-    
-    if (session.characterInfo) {
-        characterInfoElement.textContent = session.characterInfo;
-    }
-    
-    // 메시지 복원
-    if (session.messages && Array.isArray(session.messages)) {
-        session.messages.forEach(msg => {
-            addMessage(msg.sender, msg.text, msg.className);
-        });
-    }
-    
-    // 게임 화면 표시 및 시작 화면 숨기기
-    startScreen.classList.add('hidden');
-    gameContainer.classList.remove('hidden');
-    
-    // 게임 종료된 경우 컨트롤 업데이트
-    if (gameEnded) {
-        showGameOverControls();
-    }
-    
-    // 메시지 영역 스크롤
-    scrollToBottom();
-}
-
-// 게임 세션 저장 함수
-function saveGameSession() {
-    if (!sessionStorageAvailable || !gameId) return;
-    
-    // 메시지 수집
-    const messages = [];
-    const messageElements = messageContainer.querySelectorAll('.message');
-    messageElements.forEach(el => {
-        const sender = el.classList.contains('user-message') ? 'user' : 'ai';
-        const text = el.textContent;
-        const className = sender === 'user' ? 'user-message' : 'ai-message';
-        messages.push({ sender, text, className });
-    });
-    
-    // 게임 세션 객체 생성
-    const session = {
-        gameId,
-        title,
-        category: categoryElement.textContent.replace('카테고리: ', ''),
-        currentTurn,
-        maxTurns,
-        winCondition,
-        characterName,
-        characterInfo: characterInfoElement.textContent,
-        completed: gameEnded,
-        messages,
-        timestamp: new Date().toISOString()
-    };
-    
-    // 세션 저장
-    try {
-        sessionStorage.setItem('gameSession', JSON.stringify(session));
-        console.log('게임 세션 저장됨:', session);
-    } catch (error) {
-        console.error('게임 세션 저장 오류:', error);
-    }
-}
-
 // 버튼이 DOM에 제대로 있는지 확인하는 함수
 function checkButtonsExist() {
     console.log('버튼 존재 확인:');
-    console.log('startSelectedBtn:', startSelectedBtn ? '존재함' : '존재하지 않음');
-    console.log('startRandomBtn:', startRandomBtn ? '존재함' : '존재하지 않음');
     console.log('sendButton:', sendButton ? '존재함' : '존재하지 않음');
     console.log('endGameButton:', endGameButton ? '존재함' : '존재하지 않음');
     console.log('newGameButton:', newGameButton ? '존재함' : '존재하지 않음');
@@ -217,250 +98,6 @@ function updateCharCount() {
         charCounter.classList.add('char-limit-warning');
     } else {
         charCounter.classList.remove('char-limit-warning');
-    }
-}
-
-// 서버 상태 확인 함수
-async function checkServerStatus() {
-    try {
-        console.log('서버 상태 확인 시작...');
-        serverStatus.textContent = '서버 연결 중...';
-        serverStatus.classList.remove('success-text', 'error-text');
-        
-        console.log('서버 상태 API 요청:', `${SERVER_URL}/api/health`);
-        const response = await fetch(`${SERVER_URL}/api/health`, { 
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            // 캐시 방지
-            cache: 'no-cache'
-        });
-        console.log('서버 상태 응답:', response.status, response.statusText);
-        
-        if (response.ok) {
-            // 서버 응답 성공
-            console.log('서버 연결 성공');
-            const data = await response.json();
-            
-            serverStatus.textContent = `✅ 서버 연결 성공 (${data.status})`;
-            serverStatus.classList.add('success-text');
-            serverStatus.classList.remove('error-text');
-            startScreen.classList.remove('hidden');
-            
-            // 게임 항목 로드
-            fetchGameItems();
-            
-            // 성공하면 60초마다 확인 (백그라운드에서 상태 유지)
-            setTimeout(checkServerStatus, 60000);
-        } else {
-            // 서버 응답은 받았지만 오류 코드 반환
-            console.error('서버 응답 오류:', response.status);
-            throw new Error(`서버 연결 불안정: 상태 코드 ${response.status}`);
-        }
-    } catch (error) {
-        console.error('서버 연결 실패:', error);
-        // 오류 메시지를 사용자 친화적으로 변경
-        let errorMessage = '❌ 서버 연결 실패';
-        
-        // "Failed to fetch" 같은 기술적 오류 메시지 대신 보기 좋은 메시지 표시
-        if (error.message.includes('Failed to fetch')) {
-            errorMessage = '❌ 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.';
-        } else {
-            errorMessage = `❌ 서버 연결 오류: ${error.message.replace('TypeError: ', '').replace('Error: ', '')}`;
-        }
-        
-        serverStatus.textContent = errorMessage;
-        serverStatus.classList.add('error-text');
-        serverStatus.classList.remove('success-text');
-        
-        // 실패하면 10초 후 재시도
-        setTimeout(checkServerStatus, 10000);
-    }
-}
-
-// 게임 항목 목록 가져오기
-async function fetchGameItems() {
-    try {
-        console.log('게임 항목 목록 요청 시작:', `${SERVER_URL}/api/games`);
-        
-        const response = await fetch(`${SERVER_URL}/api/games`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            cache: 'no-cache'
-        });
-        console.log('게임 항목 응답 상태:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            throw new Error(`서버 응답 오류: ${response.status}`);
-        }
-        
-        // 서버 연결 성공 시, 서버 상태 메시지 업데이트
-        if (!serverStatus.classList.contains('success-text')) {
-            serverStatus.textContent = '✅ 서버 연결 성공';
-            serverStatus.classList.add('success-text');
-            serverStatus.classList.remove('error-text');
-        }
-        
-        const data = await response.json();
-        console.log('게임 항목 데이터 수신:', data);
-        
-        if (data.success && Array.isArray(data.data)) {
-            gameItems = data.data;
-            console.log('게임 항목 로드 성공:', gameItems.length, '개 항목');
-            populateGameSelect(gameItems);
-        } else {
-            console.error('게임 항목을 불러오는데 실패했습니다:', data.error || '알 수 없는 오류');
-        }
-    } catch (error) {
-        console.error('게임 항목 가져오기 실패:', error);
-    }
-}
-
-// 게임 선택 드롭다운 채우기
-function populateGameSelect(items) {
-    console.log('게임 목록 드롭다운 채우기 시작:', items);
-    
-    // gameSelect 요소가 존재하는지 확인
-    if (!gameSelect) {
-        console.error('게임 선택 드롭다운 요소를 찾을 수 없습니다!');
-        return;
-    }
-    
-    // 기존 옵션 제거 (첫 번째 옵션 제외)
-    console.log('기존 드롭다운 옵션 제거, 현재 옵션 수:', gameSelect.options.length);
-    while (gameSelect.options.length > 1) {
-        gameSelect.remove(1);
-    }
-    
-    // 카테고리별로 그룹화
-    const categorizedItems = {};
-    
-    items.forEach(item => {
-        const category = item.category || '기타';
-        if (!categorizedItems[category]) {
-            categorizedItems[category] = [];
-        }
-        categorizedItems[category].push(item);
-    });
-    
-    // 카테고리별 optgroup 생성
-    for (const category in categorizedItems) {
-        const group = document.createElement('optgroup');
-        group.label = category;
-        
-        // 해당 카테고리의 게임들 추가
-        categorizedItems[category].forEach(item => {
-            const option = document.createElement('option');
-            option.value = item.id;
-            option.textContent = `${item.title} (${item.difficulty || '보통'}, ${item.max_turns}턴)`;
-            option.dataset.turns = item.max_turns;
-            group.appendChild(option);
-        });
-        
-        gameSelect.appendChild(group);
-    }
-    
-    console.log('게임 목록 드롭다운 채우기 완료, 총 옵션 수:', gameSelect.options.length);
-}
-
-// 게임 시작 핸들러
-async function handleStartGame(mode) {
-    try {
-        console.log(`게임 시작 모드: ${mode}`);
-        
-        // 서버 연결 상태 확인
-        if (serverStatus.classList.contains('error-text')) {
-            alert('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
-            return;
-        }
-        
-        // 랜덤 모드 또는 선택된 게임 ID 가져오기
-        let selectedGameId = null;
-        if (mode === 'selected') {
-            selectedGameId = gameSelect.value;
-            if (!selectedGameId) {
-                alert('게임을 선택해주세요.');
-                return;
-            }
-        }
-        
-        // 게임 시작 버튼 비활성화 (중복 클릭 방지)
-        startSelectedBtn.disabled = true;
-        startRandomBtn.disabled = true;
-        
-        console.log('게임 시작 API 요청:', `${SERVER_URL}/api/start`);
-        console.log('선택된 게임 ID:', selectedGameId);
-        
-        // API 요청 데이터 준비
-        const requestData = {
-            item_id: selectedGameId,
-            test: USE_TEST_MODE // 테스트 모드 활성화 여부
-        };
-        
-        // API 요청
-        const response = await fetch(`${SERVER_URL}/api/start`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestData)
-        });
-        
-        console.log('게임 시작 응답 상태:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            throw new Error(`서버 응답 오류: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('게임 시작 응답 데이터:', data);
-        
-        if (data.success && data.data) {
-            // 게임 정보 저장
-            gameId = data.data.game_id;
-            title = data.data.title;
-            maxTurns = data.data.max_turns;
-            currentTurn = data.data.current_turn;
-            winCondition = data.data.win_condition;
-            characterName = data.data.character_name;
-            gameEnded = false;
-            
-            // UI 업데이트
-            gameIdElement.textContent = `게임 ID: ${gameId}`;
-            categoryElement.textContent = `카테고리: ${data.data.category}`;
-            titleElement.textContent = `시나리오: ${title}`;
-            winConditionElement.textContent = `승리 조건: ${winCondition}`;
-            updateTurnIndicator(currentTurn, maxTurns);
-            
-            // 캐릭터 정보 표시
-            if (data.data.character_setting) {
-                characterInfoElement.textContent = `${data.data.character_name}: ${data.data.character_setting}`;
-            }
-            
-            // 메시지 영역 초기화
-            messageContainer.innerHTML = '';
-            
-            // 환영 메시지 추가
-            if (data.data.welcome_message) {
-                addMessage('system', data.data.welcome_message, 'system-message');
-            }
-            
-            // 게임 화면 표시 및 시작 화면 숨기기
-            startScreen.classList.add('hidden');
-            gameContainer.classList.remove('hidden');
-            
-            // 입력란에 포커스
-            userInput.focus();
-            
-            // 게임 세션 저장
-            saveGameSession();
-        } else {
-            throw new Error(data.error || '게임을 시작하는데 실패했습니다.');
-        }
-    } catch (error) {
-        console.error('게임 시작 오류:', error);
-        alert(`게임을 시작하는데 문제가 발생했습니다: ${error.message}`);
-    } finally {
-        // 게임 시작 버튼 활성화
-        startSelectedBtn.disabled = false;
-        startRandomBtn.disabled = false;
     }
 }
 
@@ -563,9 +200,6 @@ async function askQuestion(message) {
             // 게임 종료 UI 업데이트
             showGameOverControls();
         }
-        
-        // 게임 세션 저장
-        saveGameSession();
     } catch (error) {
         console.error('AI 응답 가져오기 실패:', error);
         throw error;
@@ -667,9 +301,6 @@ function handleBackToHome() {
     userInput.value = '';
     updateCharCount();
     
-    // 게임 항목 새로고침
-    fetchGameItems();
-    
     // 세션 스토리지에서 게임 삭제
     if (sessionStorageAvailable) {
         sessionStorage.removeItem('gameSession');
@@ -750,9 +381,6 @@ window.startGameWithData = function(gameData) {
     
     // 입력란에 포커스
     userInput.focus();
-    
-    // 게임 세션 저장
-    saveGameSession();
     
     // 버튼 상태 복원
     startSelectedBtn.disabled = false; 
