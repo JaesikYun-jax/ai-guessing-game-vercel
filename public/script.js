@@ -29,9 +29,9 @@ const startSelectedBtn = document.getElementById('start-selected-btn');
 const startRandomBtn = document.getElementById('start-random-btn');
 const characterInfoElement = document.getElementById('character-info');
 
-// 서버 주소 설정 (API 서버 URL)
-const SERVER_URL = 'https://flask-vercel-ebon.vercel.app';
-const USE_TEST_MODE = true; // 테스트 모드 활성화
+// 서버 주소와 테스트 모드 설정 (index.html에서 설정한 값 사용)
+const SERVER_URL = window.API_SERVER || 'https://flask-vercel-ebon.vercel.app';
+const USE_TEST_MODE = window.USE_TEST_MODE || true; // 테스트 모드 활성화
 
 // 세션 스토리지 사용 가능 여부 확인
 try {
@@ -711,4 +711,52 @@ function addMessage(sender, text, className) {
 function scrollToBottom() {
     const messages = document.querySelector('.messages');
     messages.scrollTop = messages.scrollHeight;
-} 
+}
+
+// 인라인 스크립트에서 호출할 수 있도록 함수 노출
+window.startGameWithData = function(gameData) {
+    // 게임 정보 저장
+    gameId = gameData.game_id;
+    title = gameData.title;
+    maxTurns = gameData.max_turns;
+    currentTurn = gameData.current_turn;
+    winCondition = gameData.win_condition;
+    characterName = gameData.character_name;
+    gameEnded = false;
+    
+    // UI 업데이트
+    gameIdElement.textContent = `게임 ID: ${gameId}`;
+    categoryElement.textContent = `카테고리: ${gameData.category}`;
+    titleElement.textContent = `시나리오: ${title}`;
+    winConditionElement.textContent = `승리 조건: ${winCondition}`;
+    updateTurnIndicator(currentTurn, maxTurns);
+    
+    // 캐릭터 정보 표시
+    if (gameData.character_setting) {
+        characterInfoElement.textContent = `${gameData.character_name}: ${gameData.character_setting}`;
+    }
+    
+    // 메시지 영역 초기화
+    messageContainer.innerHTML = '';
+    
+    // 환영 메시지 추가
+    if (gameData.welcome_message) {
+        addMessage('system', gameData.welcome_message, 'system-message');
+    }
+    
+    // 게임 화면 표시 및 시작 화면 숨기기
+    startScreen.classList.add('hidden');
+    gameContainer.classList.remove('hidden');
+    
+    // 입력란에 포커스
+    userInput.focus();
+    
+    // 게임 세션 저장
+    saveGameSession();
+    
+    // 버튼 상태 복원
+    startSelectedBtn.disabled = false; 
+    startRandomBtn.disabled = false;
+    
+    console.log('게임이 성공적으로 시작되었습니다:', gameId);
+}; 

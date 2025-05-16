@@ -112,18 +112,9 @@
     
     <!-- 직접 스크립트 추가 (script.js는 유지) -->
     <script>
-        // API 서버 URL 하드코딩
-        const API_SERVER = 'https://flask-vercel-ebon.vercel.app';
-        
-        // 전역 변수
-        let gameId = null;
-        let gameEnded = false;
-        let currentTurn = 1;
-        let maxTurns = 0;
-        let title = "";
-        let winCondition = "";
-        let characterName = "AI";
-        let gameItems = [];
+        // API 서버 URL 설정 (script.js에서 참조)
+        window.API_SERVER = 'https://flask-vercel-ebon.vercel.app';
+        window.USE_TEST_MODE = true;
         
         // DOM 요소
         const serverStatus = document.getElementById('server-status');
@@ -139,7 +130,9 @@
         
         // 페이지 로드 시 서버 상태 확인 및 게임 목록 로드
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('페이지 로드됨, API 서버:', API_SERVER);
+            console.log('페이지 로드됨, API 서버:', window.API_SERVER);
+            
+            // 서버 상태 확인
             checkServerStatus();
             
             // 이벤트 리스너 등록
@@ -156,7 +149,7 @@
                 serverStatus.textContent = '서버 연결 중...';
                 serverStatus.classList.remove('success-text', 'error-text');
                 
-                const response = await fetch(`${API_SERVER}/api/health`, {
+                const response = await fetch(`${window.API_SERVER}/api/health`, {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                     cache: 'no-cache'
@@ -191,7 +184,7 @@
             try {
                 console.log('게임 목록 요청 중...');
                 
-                const response = await fetch(`${API_SERVER}/api/games`, {
+                const response = await fetch(`${window.API_SERVER}/api/games`, {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' },
                     cache: 'no-cache'
@@ -204,9 +197,9 @@
                 const data = await response.json();
                 
                 if (data.success && Array.isArray(data.data)) {
-                    gameItems = data.data;
-                    console.log(`${gameItems.length}개의 게임 항목 로드됨`);
-                    populateGameSelect(gameItems);
+                    window.gameItems = data.data;
+                    console.log(`${window.gameItems.length}개의 게임 항목 로드됨`);
+                    populateGameSelect(window.gameItems);
                 } else {
                     throw new Error('게임 목록을 불러올 수 없습니다');
                 }
@@ -269,12 +262,12 @@
                 startRandomBtn.disabled = true;
                 
                 // API 요청
-                const response = await fetch(`${API_SERVER}/api/start`, {
+                const response = await fetch(`${window.API_SERVER}/api/start`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         item_id: selectedGameId,
-                        test: true  // 테스트 모드
+                        test: window.USE_TEST_MODE  // 테스트 모드
                     })
                 });
                 
@@ -285,8 +278,14 @@
                 const data = await response.json();
                 
                 if (data.success && data.data) {
-                    // 게임 시작 처리는 script.js에 위임
                     console.log('게임 데이터 로드 성공:', data);
+                    
+                    // script.js 함수 호출하여 게임을 실제로 시작
+                    if (window.startGameWithData && typeof window.startGameWithData === 'function') {
+                        window.startGameWithData(data.data);
+                    } else {
+                        console.error('startGameWithData 함수를 찾을 수 없습니다!');
+                    }
                 } else {
                     throw new Error(data.error || '게임을 시작할 수 없습니다');
                 }
