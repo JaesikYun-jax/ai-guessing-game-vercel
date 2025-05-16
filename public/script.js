@@ -371,6 +371,10 @@ function scrollToBottom() {
 
 // 인라인 스크립트에서 호출할 수 있도록 함수 노출
 window.startGameWithData = function(gameData) {
+    // 디버깅용 로그 추가
+    console.log('[DEBUG] startGameWithData 함수 호출됨', gameData);
+    console.log('[DEBUG] window.debug 존재:', typeof window.debug !== 'undefined');
+    
     if (window.debug) {
         window.debug(`게임 시작: ${gameData.title} (ID: ${gameData.game_id})`);
         window.debug(`승리 조건: ${gameData.win_condition}, 턴 제한: ${gameData.max_turns}`);
@@ -415,6 +419,17 @@ window.startGameWithData = function(gameData) {
     // 버튼 상태 복원
     startSelectedBtn.disabled = false; 
     startRandomBtn.disabled = false;
+    
+    // 디버깅용 추가 로그
+    console.log('[DEBUG] DOM 요소 상태:', {
+        gameIdElement: !!gameIdElement,
+        categoryElement: !!categoryElement,
+        titleElement: !!titleElement,
+        winConditionElement: !!winConditionElement,
+        messageContainer: !!messageContainer,
+        startScreen: !!startScreen,
+        gameContainer: !!gameContainer
+    });
     
     if (window.debug) {
         window.debug('게임이 성공적으로 시작되었습니다', 'success');
