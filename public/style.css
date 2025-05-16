@@ -132,6 +132,13 @@ header h1 {
     background-color: #43a047;
 }
 
+/* ubc84ud2bc ube44ud65cuc131ud654 uc2a4ud0c0uc77c */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* 화면 전환 */
 .screen {
     opacity: 1;
@@ -515,4 +522,6 @@ footer {
         padding: 1.5rem;
         width: 95%;
     }
-} 
+}
+
+/* ud654uba74 uc804ud658 */ 

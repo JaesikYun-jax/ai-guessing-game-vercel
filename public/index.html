@@ -495,11 +495,15 @@
         
         // 게임 시작 핸들러 
         async function handleStartGame(mode) {
+            // 클릭 이벤트 디버그 로깅
+            debug(`게임 시작 버튼 클릭됨: ${mode} 모드`, 'success');
+            
             try {
                 // 선택 모드에서 게임 ID 확인
                 let selectedGameId = null;
                 if (mode === 'selected') {
                     selectedGameId = gameSelect.value;
+                    debug(`선택된 게임 ID: ${selectedGameId || '없음'}`);
                     if (!selectedGameId) {
                         debug('게임이 선택되지 않음', 'warn');
                         alert('게임을 선택해주세요.');
@@ -510,6 +514,7 @@
                 debug(`게임 시작 요청: 모드=${mode}, 게임ID=${selectedGameId || 'random'}`);
                 
                 // 버튼 비활성화
+                debug('버튼 비활성화', 'info');
                 startSelectedBtn.disabled = true;
                 startRandomBtn.disabled = true;
                 
@@ -559,6 +564,7 @@
                 showErrorModal(`게임을 시작할 수 없습니다: ${error.message}`);
                 
                 // 버튼 다시 활성화
+                debug('버튼 다시 활성화', 'info');
                 startSelectedBtn.disabled = false;
                 startRandomBtn.disabled = false;
             }
