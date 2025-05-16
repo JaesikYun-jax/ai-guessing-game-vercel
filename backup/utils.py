@@ -166,7 +166,7 @@ def load_game_items():
             {
                 "id": 3,
                 "title": "면접에서 목표 달성하기",
-                "category": "비즈니스",
+                "category": "면접",
                 "character_name": "이지연",
                 "max_turns": 6,
                 "win_condition": "면접관을 설득하고 일자리 제안받기"

@@ -28,16 +28,14 @@ const startSelectedBtn = document.getElementById('start-selected-btn');
 const startRandomBtn = document.getElementById('start-random-btn');
 const characterInfoElement = document.getElementById('character-info');
 
-// 서버 주소와 테스트 모드 설정 (index.html에서 설정한 값 사용)
+// 서버 주소 설정
 const SERVER_URL = window.API_SERVER || 'https://flask-vercel-ebon.vercel.app';
-const USE_TEST_MODE = window.USE_TEST_MODE || true; // 테스트 모드 활성화
 
 // 페이지 로드 시 이벤트 리스너 등록
 document.addEventListener('DOMContentLoaded', async () => {
     // 콘솔에 디버그 메시지 출력
     console.log('페이지 로드됨, 이벤트 리스너 설정 시작');
     console.log('서버 URL:', SERVER_URL);
-    console.log('테스트 모드:', USE_TEST_MODE ? '활성화' : '비활성화');
     
     // 이벤트 리스너 등록
     console.log('버튼 이벤트 리스너 추가 시작');

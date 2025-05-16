@@ -114,7 +114,6 @@
     <script>
         // API 서버 URL 설정 (script.js에서 참조)
         window.API_SERVER = 'https://flask-vercel-ebon.vercel.app';
-        window.USE_TEST_MODE = true;
         
         // DOM 요소
         const serverStatus = document.getElementById('server-status');
@@ -168,6 +167,11 @@
                     
                     // 게임 목록 로드
                     fetchGameItems();
+                } else if (data && data.status === 'error') {
+                    // API 키가 없는 경우 등의 오류 처리
+                    serverStatus.textContent = `❌ 서버 오류: ${data.message}`;
+                    serverStatus.classList.add('error-text');
+                    showErrorModal(`API 서버 오류: ${data.message}`);
                 } else {
                     throw new Error('서버 상태가 온라인이 아닙니다');
                 }
@@ -266,8 +270,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        item_id: selectedGameId,
-                        test: window.USE_TEST_MODE  // 테스트 모드
+                        item_id: selectedGameId
                     })
                 });
                 
