@@ -258,7 +258,10 @@
         }
     </style>
     
-    <!-- 직접 스크립트 추가 (script.js는 유지) -->
+    <!-- 기존 스크립트를 먼저 로드 -->
+    <script src="script.js"></script>
+    
+    <!-- 직접 스크립트 추가 (script.js 이후에 로드) -->
     <script>
         // API 서버 URL 설정 (script.js에서 참조)
         window.API_SERVER = 'https://flask-vercel-ebon.vercel.app';
@@ -625,8 +628,5 @@
             debug('게임 선택 상자 업데이트 완료', 'success');
         }
     </script>
-    
-    <!-- 기존 스크립트 유지 -->
-    <script src="script.js"></script>
 </body>
 </html> 
