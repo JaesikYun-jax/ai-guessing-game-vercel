@@ -570,6 +570,42 @@
             errorModal.classList.remove('hidden');
             debug(`오류 모달 표시: ${message}`, 'warn');
         }
+        
+        // 게임 선택 상자 채우기
+        function populateGameSelect(games) {
+            debug(`게임 선택 상자 채우기: ${games.length}개 항목`);
+            
+            // 기존 옵션 제거 (첫 번째 기본 옵션 제외)
+            while (gameSelect.options.length > 1) {
+                gameSelect.remove(1);
+            }
+            
+            // 카테고리별로 게임 그룹화
+            const gamesByCategory = {};
+            games.forEach(game => {
+                if (!gamesByCategory[game.category]) {
+                    gamesByCategory[game.category] = [];
+                }
+                gamesByCategory[game.category].push(game);
+            });
+            
+            // 카테고리별로 옵션 그룹 생성 및 추가
+            Object.keys(gamesByCategory).forEach(category => {
+                const group = document.createElement('optgroup');
+                group.label = category;
+                
+                gamesByCategory[category].forEach(game => {
+                    const option = document.createElement('option');
+                    option.value = game.id;
+                    option.textContent = `${game.title} (${game.difficulty}, ${game.max_turns}턴)`;
+                    group.appendChild(option);
+                });
+                
+                gameSelect.appendChild(group);
+            });
+            
+            debug('게임 선택 상자 업데이트 완료', 'success');
+        }
     </script>
     
     <!-- 기존 스크립트 유지 -->
